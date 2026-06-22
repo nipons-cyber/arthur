@@ -1,0 +1,124 @@
+# Single source of truth for the Q360 video.
+# Both tts.py (voiceover) and build.py (assembly) read this file.
+#
+# Each scene:
+#   id      : scene id, used for asset + audio filenames (s01, s02, ...)
+#   act     : act number (grouping only)
+#   start   : approximate landing timecode (informational)
+#   vo      : narration text. Use " (beat) " for a deliberate pause.
+#   caption : on-screen text (kept minimal). "" = no caption.
+#   asset   : filename in assets/clips/. If missing, a slate is generated.
+
+project:
+  title: "Q360 — The last business management platform you'll ever need"
+  resolution: [1920, 1080]
+  fps: 24
+  # gentle fade applied to the start/end of every scene (seconds)
+  scene_fade: 0.4
+  # accent color for slates/captions (when no footage is supplied)
+  accent: "0x1F6FEB"
+  bg: "0x0B1220"
+
+scenes:
+  - id: s01
+    act: 1
+    start: "0:00"
+    vo: "Every day, your teams are in the field. (beat) Wiring a stadium. Securing a hospital. Bringing a building to life."
+    caption: ""
+    asset: s01.mp4
+  - id: s02
+    act: 1
+    start: "0:12"
+    vo: "The work is complex. The stakes are real. And the business behind it is growing faster than ever."
+    caption: "The work is complex."
+    asset: s02.mp4
+  - id: s03
+    act: 2
+    start: "0:35"
+    vo: "But growth has a way of exposing the cracks. (beat) Quotes in one system. Projects in another. Inventory on a spreadsheet. Accounting somewhere else."
+    caption: "Disconnected systems"
+    asset: s03.mp4
+  - id: s04
+    act: 2
+    start: "0:52"
+    vo: "Every disconnect is a delay. Every blind spot, a margin slipping away. The bigger you get, the harder it is to see the whole picture."
+    caption: "Every disconnect is a delay."
+    asset: s04.mp4
+  - id: s05
+    act: 3
+    start: "1:10"
+    vo: "It doesn't have to be this way. (beat) This is Q360. One platform, built for the way integrators actually work — by people who've done the work themselves."
+    caption: "Q360"
+    asset: s05.mp4
+  - id: s06
+    act: 3
+    start: "1:25"
+    vo: "From the first proposal to the final invoice, your entire business, connected."
+    caption: "Built by integrators, for integrators."
+    asset: s06.mp4
+  - id: s07
+    act: 4
+    start: "1:45"
+    vo: "It starts with the sale. Build proposals with dynamic labour rates and accurate costing — so you win the work, and win it profitably."
+    caption: "Sales & Proposals"
+    asset: s07.mp4
+  - id: s08
+    act: 4
+    start: "2:05"
+    vo: "The moment you do, it becomes a project. Schedules, tasks, and job costing update in real time — no re-entry, no surprises."
+    caption: "Project Management · Job Costing"
+    asset: s08.mp4
+  - id: s09
+    act: 4
+    start: "2:25"
+    vo: "Out in the field, service and dispatch keep your technicians moving, with everything they need in the palm of their hand."
+    caption: "Service & Dispatch"
+    asset: s09.mp4
+  - id: s10
+    act: 4
+    start: "2:45"
+    vo: "Inventory and fulfillment stay in sync — the right parts, at the right place, at the right time."
+    caption: "Inventory & Fulfillment"
+    asset: s10.mp4
+  - id: s11
+    act: 4
+    start: "2:58"
+    vo: "And underneath it all: full, built-in accounting. Not a bolt-on. Not an export. One source of truth."
+    caption: "Full accounting · One source of truth"
+    asset: s11.mp4
+  - id: s12
+    act: 5
+    start: "3:05"
+    vo: "When everything connects, everything changes. (beat) You see real-time profitability on every job — while there's still time to act on it. You protect your margins instead of chasing them."
+    caption: "See profit while you can still act on it."
+    asset: s12.mp4
+  - id: s13
+    act: 5
+    start: "3:28"
+    vo: "And you scale — adding projects, technicians, and locations without adding chaos. On the desktop. On the web. On the move."
+    caption: "Scale without the chaos."
+    asset: s13.mp4
+  - id: s14
+    act: 6
+    start: "3:55"
+    vo: "This isn't a someday promise. (beat) More than five hundred integrators already run on Q360 — across AV, security, fire, and life safety. From teams of twenty-five to enterprises of two thousand and beyond. (beat) Built by integrators. For integrators."
+    caption: "500+ integrators"
+    asset: s14.mp4
+  - id: s15
+    act: 7
+    start: "4:30"
+    vo: "Your business does remarkable work. (beat) Your software should keep up."
+    caption: "Your software should keep up."
+    asset: s15.mp4
+  - id: s16
+    act: 7
+    start: "4:50"
+    vo: "Q360. The last business management platform you'll ever need. (beat) Solutions360. See the whole picture."
+    caption: "Q360 · Solutions360"
+    asset: s16.mp4
+
+music:
+  # drop one track here; it is looped/trimmed and ducked under the VO
+  file: assets/music/bed.mp3
+  volume: 0.12        # 0.0–1.0, kept low for B2B
+  fade: 2.0           # in/out seconds
