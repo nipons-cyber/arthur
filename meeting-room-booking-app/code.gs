@@ -88,6 +88,34 @@ function getBookingsForRoomDate_(dateStr, room) {
 }
 
 /**
+ * คืนรายการการจองที่มีอยู่แล้วของห้อง+วันที่ที่เลือก (ให้ทุกคนเห็นว่าช่วงไหนถูกจองไปแล้ว)
+ * เรียงตามเวลาเริ่มจอง
+ */
+function getExistingBookings(dateStr, room) {
+  var sheet = getSheet_();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+
+  var data = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
+  var bookings = [];
+  for (var i = 0; i < data.length; i++) {
+    var row = data[i];
+    var rowDate = formatDateKey_(row[0]);
+    if (rowDate === dateStr && row[1] === room && row[2] !== '' && row[3] !== '') {
+      bookings.push({
+        startTime: row[2],
+        endTime: row[3],
+        name: row[4]
+      });
+    }
+  }
+  bookings.sort(function (a, b) {
+    return timeToMinutes_(a.startTime) - timeToMinutes_(b.startTime);
+  });
+  return bookings;
+}
+
+/**
  * คืนรายการ "เวลาเริ่มจอง" ที่ยังว่างอยู่ สำหรับห้อง+วันที่ที่เลือก
  */
 function getAvailableStartTimes(dateStr, room) {
