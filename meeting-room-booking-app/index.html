@@ -163,27 +163,132 @@
       cursor: not-allowed;
     }
 
-    .status {
-      margin-top: 16px;
+    .booked-panel {
+      margin: -6px 0 18px;
       padding: 12px 14px;
-      border-radius: 12px;
-      font-size: 13.5px;
-      display: none;
+      border-radius: 14px;
+      background: #faf7fb;
+      border: 1px solid #f0e6f3;
+    }
+
+    .booked-panel-title {
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--ig-3);
+      margin-bottom: 8px;
+    }
+
+    .booked-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 140px;
+      overflow-y: auto;
+    }
+
+    .booked-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      font-size: 12.5px;
+      background: #fff;
+      border-radius: 9px;
+      padding: 7px 10px;
+      border: 1px solid var(--border);
+    }
+
+    .booked-list .time {
+      font-weight: 600;
+      color: var(--ig-4);
+      white-space: nowrap;
+    }
+
+    .booked-list .who {
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ----- Popup Modal ----- */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(38, 38, 38, 0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 100;
+    }
+
+    .modal-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      width: 100%;
+      max-width: 340px;
+      background: #fff;
+      border-radius: 20px;
+      padding: 28px 24px 24px;
       text-align: center;
+      transform: translateY(10px) scale(0.97);
+      transition: transform 0.2s ease;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.3);
     }
 
-    .status.show { display: block; }
-
-    .status.success {
-      background: #eafaf1;
-      color: #1e7e4a;
-      border: 1px solid #bdeed0;
+    .modal-overlay.show .modal-card {
+      transform: translateY(0) scale(1);
     }
 
-    .status.fail {
-      background: #fdecec;
-      color: #c0202b;
-      border: 1px solid #f6c6c9;
+    .modal-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 14px;
+      font-size: 26px;
+      color: #fff;
+    }
+
+    .modal-card.success .modal-icon { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+    .modal-card.fail .modal-icon { background: linear-gradient(135deg, var(--ig-4), var(--ig-5)); }
+
+    .modal-title {
+      font-weight: 600;
+      font-size: 17px;
+      margin-bottom: 6px;
+    }
+
+    .modal-message {
+      font-size: 13.5px;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    .modal-close {
+      border: none;
+      cursor: pointer;
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 12px;
+      font-family: 'Kanit', sans-serif;
+      font-weight: 500;
+      font-size: 14px;
+      color: #fff;
+      background: linear-gradient(90deg, var(--ig-2), var(--ig-4) 50%, var(--ig-6));
     }
 
     .spinner {
@@ -245,6 +350,11 @@
         </div>
         <div class="hint" id="slotHint"></div>
 
+        <div class="booked-panel" id="bookedPanel" style="display:none;">
+          <div class="booked-panel-title">ช่วงเวลาที่ถูกจองไปแล้ว</div>
+          <ul class="booked-list" id="bookedList"></ul>
+        </div>
+
         <div class="field">
           <label for="name">ชื่อผู้จอง</label>
           <input type="text" id="name" placeholder="ชื่อ-นามสกุล" required>
@@ -256,12 +366,19 @@
         </div>
 
         <button type="submit" class="submit" id="submitBtn">ยืนยันการจอง</button>
-
-        <div class="status" id="status"></div>
       </form>
     </div>
 
     <div class="footer-note">ข้อมูลการจองจะถูกบันทึกลง Google Sheets โดยอัตโนมัติ</div>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal-card" id="modalCard">
+      <div class="modal-icon" id="modalIcon"></div>
+      <div class="modal-title" id="modalTitle"></div>
+      <div class="modal-message" id="modalMessage"></div>
+      <button type="button" class="modal-close" id="modalCloseBtn">ปิด</button>
+    </div>
   </div>
 
   <script>
@@ -271,8 +388,15 @@
     var endSelect = document.getElementById('endTime');
     var slotHint = document.getElementById('slotHint');
     var submitBtn = document.getElementById('submitBtn');
-    var statusBox = document.getElementById('status');
     var form = document.getElementById('bookingForm');
+    var bookedPanel = document.getElementById('bookedPanel');
+    var bookedList = document.getElementById('bookedList');
+    var modalOverlay = document.getElementById('modalOverlay');
+    var modalCard = document.getElementById('modalCard');
+    var modalIcon = document.getElementById('modalIcon');
+    var modalTitle = document.getElementById('modalTitle');
+    var modalMessage = document.getElementById('modalMessage');
+    var modalCloseBtn = document.getElementById('modalCloseBtn');
 
     // วันที่ขั้นต่ำ = วันนี้
     (function initDate() {
@@ -283,14 +407,59 @@
       dateInput.min = yyyy + '-' + mm + '-' + dd;
     })();
 
-    function setStatus(msg, type) {
-      statusBox.textContent = msg;
-      statusBox.className = 'status show ' + (type || '');
+    function showModal(type, title, message) {
+      modalCard.className = 'modal-card ' + type;
+      modalIcon.textContent = type === 'success' ? '✓' : '!';
+      modalTitle.textContent = title;
+      modalMessage.textContent = message;
+      modalOverlay.classList.add('show');
     }
 
-    function clearStatus() {
-      statusBox.className = 'status';
-      statusBox.textContent = '';
+    function hideModal() {
+      modalOverlay.classList.remove('show');
+    }
+
+    modalCloseBtn.addEventListener('click', hideModal);
+    modalOverlay.addEventListener('click', function (e) {
+      if (e.target === modalOverlay) hideModal();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') hideModal();
+    });
+
+    function renderBookedList(bookings) {
+      bookedList.innerHTML = '';
+      if (!bookings || bookings.length === 0) {
+        bookedPanel.style.display = 'none';
+        return;
+      }
+      bookedPanel.style.display = 'block';
+      bookings.forEach(function (b) {
+        var li = document.createElement('li');
+        var time = document.createElement('span');
+        time.className = 'time';
+        time.textContent = b.startTime + ' - ' + b.endTime + ' น.';
+        var who = document.createElement('span');
+        who.className = 'who';
+        who.textContent = b.name || '';
+        li.appendChild(time);
+        li.appendChild(who);
+        bookedList.appendChild(li);
+      });
+    }
+
+    function loadBookedList() {
+      var room = roomSelect.value;
+      var date = dateInput.value;
+      if (!room || !date) {
+        renderBookedList([]);
+        return;
+      }
+      google.script.run.withSuccessHandler(function (bookings) {
+        renderBookedList(bookings);
+      }).withFailureHandler(function () {
+        renderBookedList([]);
+      }).getExistingBookings(date, room);
     }
 
     function resetSelect(select, placeholder) {
@@ -346,7 +515,7 @@
           roomSelect.appendChild(opt);
         });
       }).withFailureHandler(function (err) {
-        setStatus('โหลดรายชื่อห้องไม่สำเร็จ: ' + err.message, 'fail');
+        showModal('fail', 'โหลดข้อมูลไม่สำเร็จ', 'โหลดรายชื่อห้องไม่สำเร็จ: ' + err.message);
       }).getRooms();
     }
 
@@ -360,11 +529,14 @@
 
       if (!room || !date) {
         resetSelect(startSelect, '-- เลือกห้อง/วันที่ก่อน --');
+        renderBookedList([]);
         return;
       }
 
       startSelect.disabled = true;
       startSelect.innerHTML = '<option value="" selected>กำลังตรวจสอบคิวว่าง...</option>';
+
+      loadBookedList();
 
       google.script.run.withSuccessHandler(function (times) {
         fillOptions(startSelect, times, 'ไม่มีเวลาว่างในวันนี้');
@@ -376,7 +548,7 @@
           slotHint.className = 'hint ok';
         }
       }).withFailureHandler(function (err) {
-        setStatus('ตรวจสอบเวลาว่างไม่สำเร็จ: ' + err.message, 'fail');
+        showModal('fail', 'ตรวจสอบเวลาว่างไม่สำเร็จ', err.message);
       }).getAvailableStartTimes(date, room);
     }
 
@@ -396,7 +568,7 @@
       google.script.run.withSuccessHandler(function (times) {
         fillOptions(endSelect, times, 'ไม่มีเวลาให้เลือก');
       }).withFailureHandler(function (err) {
-        setStatus('โหลดเวลาจบไม่สำเร็จ: ' + err.message, 'fail');
+        showModal('fail', 'โหลดเวลาจบไม่สำเร็จ', err.message);
       }).getAvailableEndTimes(date, room, start);
     }
 
@@ -406,7 +578,6 @@
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      clearStatus();
 
       var payload = {
         date: dateInput.value,
@@ -418,7 +589,7 @@
       };
 
       if (!payload.date || !payload.room || !payload.startTime || !payload.endTime || !payload.name || !payload.phone) {
-        setStatus('กรุณากรอกข้อมูลให้ครบทุกช่อง', 'fail');
+        showModal('fail', 'ข้อมูลไม่ครบ', 'กรุณากรอกข้อมูลให้ครบทุกช่อง');
         return;
       }
 
@@ -430,20 +601,22 @@
           submitBtn.disabled = false;
           submitBtn.textContent = 'ยืนยันการจอง';
           if (res && res.success) {
-            setStatus(res.message, 'success');
+            showModal('success', 'จองสำเร็จ', res.message);
             form.reset();
             resetSelect(startSelect, '-- เลือกห้อง/วันที่ก่อน --');
             resetSelect(endSelect, '-- เลือกเวลาเริ่มก่อน --');
             slotHint.textContent = '';
+            renderBookedList([]);
           } else {
-            setStatus((res && res.message) || 'บันทึกไม่สำเร็จ กรุณาลองใหม่', 'fail');
+            showModal('fail', 'จองไม่สำเร็จ', (res && res.message) || 'บันทึกไม่สำเร็จ กรุณาลองใหม่');
+            // มีคนจองแทรกไปแล้ว รีเฟรชคิวว่าง/รายการที่ถูกจองให้ตรงกับข้อมูลล่าสุด
             refreshStartTimes();
           }
         })
         .withFailureHandler(function (err) {
           submitBtn.disabled = false;
           submitBtn.textContent = 'ยืนยันการจอง';
-          setStatus('เกิดข้อผิดพลาด: ' + err.message, 'fail');
+          showModal('fail', 'เกิดข้อผิดพลาด', err.message);
         })
         .submitReservation(payload);
     });
