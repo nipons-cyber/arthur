@@ -32,6 +32,12 @@ function getSheet_() {
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(HEADERS);
   }
+  // บังคับคอลัมน์ วันที่ / เวลาเริ่มจอง / เวลาจบ / เบอร์ติดต่อกลับ ให้เป็นข้อความเสมอ
+  // กัน Google Sheets auto-convert เป็นค่า Date/Time/Number ซึ่งจะทำให้เทียบเวลาชนกันผิดพลาด
+  // (จองห้องซ้ำเวลาเดิมได้) และเบอร์โทรที่ขึ้นต้นด้วย 0 ถูกตัดเลข 0 ทิ้ง
+  sheet.getRange('A:A').setNumberFormat('@');
+  sheet.getRange('C:D').setNumberFormat('@');
+  sheet.getRange('F:F').setNumberFormat('@');
   return sheet;
 }
 
@@ -55,8 +61,20 @@ function generateTimeSlots_() {
 }
 
 function timeToMinutes_(t) {
+  // ถ้าค่าที่อ่านจากชีทถูก Sheets auto-convert เป็น Date/Time object (แถวเก่าก่อนแก้บั๊ก)
+  // ให้ดึงชั่วโมง/นาทีจากตัว Date object โดยตรง แทนการแปลงเป็น string ตรงๆ ซึ่งจะได้ NaN
+  if (Object.prototype.toString.call(t) === '[object Date]') {
+    return t.getHours() * 60 + t.getMinutes();
+  }
   var parts = String(t).split(':');
   return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+}
+
+function formatTimeValue_(t) {
+  if (Object.prototype.toString.call(t) === '[object Date]') {
+    return Utilities.formatDate(t, Session.getScriptTimeZone(), 'HH:mm');
+  }
+  return String(t).trim();
 }
 
 function formatDateKey_(dateValue) {
@@ -103,8 +121,8 @@ function getExistingBookings(dateStr, room) {
     var rowDate = formatDateKey_(row[0]);
     if (rowDate === dateStr && row[1] === room && row[2] !== '' && row[3] !== '') {
       bookings.push({
-        startTime: row[2],
-        endTime: row[3],
+        startTime: formatTimeValue_(row[2]),
+        endTime: formatTimeValue_(row[3]),
         name: row[4]
       });
     }
@@ -184,6 +202,7 @@ function submitReservation(form) {
 
     var sheet = getSheet_();
     sheet.appendRow([form.date, form.room, form.startTime, form.endTime, form.name, form.phone]);
+    SpreadsheetApp.flush(); // เขียนลงชีทจริงก่อนปลดล็อก กันคำขอที่รออยู่อ่านข้อมูลเก่า
     return { success: true, message: 'บันทึกการจองห้อง ' + form.room + ' สำเร็จ' };
   } finally {
     lock.releaseLock();
