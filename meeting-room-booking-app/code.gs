@@ -6,7 +6,7 @@
 
 var SHEET_NAME = 'Reservations';
 
-var ROOMS = ['MR-1', 'MR-2', 'MR-1 FL.3', 'MR-2 FL.3', 'MR-1 FL.4', 'MR-2 FL.4'];
+var ROOMS = ['MR-1', 'MR-2', 'MR-3 FL.3', 'MR-3 FL.3', 'MR-4 FL.4', 'MR-4 FL.4'];
 
 var START_HOUR = 8;
 var START_MIN = 30;
@@ -14,7 +14,7 @@ var END_HOUR = 17;
 var END_MIN = 30;
 var SLOT_MINUTES = 30;
 
-var HEADERS = ['วันที่', 'ชื่อห้องที่ต้องการจอง', 'เวลาเริ่มจอง', 'เวลาจบ', 'ชื่อผู้จอง', 'เบอร์ติดต่อกลับ'];
+var HEADERS = ['Date', 'Room', 'Start', 'End', 'Name', 'Tel'];
 
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('index')
@@ -32,7 +32,7 @@ function getSheet_() {
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(HEADERS);
   }
-  // บังคับคอลัมน์ วันที่ / เวลาเริ่มจอง / เวลาจบ / เบอร์ติดต่อกลับ ให้เป็นข้อความเสมอ
+  // บังคับคอลัมน์ Date / Start / End / Tel ให้เป็นข้อความเสมอ
   // กัน Google Sheets auto-convert เป็นค่า Date/Time/Number ซึ่งจะทำให้เทียบเวลาชนกันผิดพลาด
   // (จองห้องซ้ำเวลาเดิมได้) และเบอร์โทรที่ขึ้นต้นด้วย 0 ถูกตัดเลข 0 ทิ้ง
   sheet.getRange('A:A').setNumberFormat('@');
@@ -134,7 +134,7 @@ function getExistingBookings(dateStr, room) {
 }
 
 /**
- * คืนรายการ "เวลาเริ่มจอง" ที่ยังว่างอยู่ สำหรับห้อง+วันที่ที่เลือก
+ * คืนรายการ "Start" ที่ยังว่างอยู่ สำหรับห้อง+วันที่ที่เลือก
  */
 function getAvailableStartTimes(dateStr, room) {
   var allSlots = generateTimeSlots_();
@@ -150,7 +150,7 @@ function getAvailableStartTimes(dateStr, room) {
 }
 
 /**
- * คืนรายการ "เวลาจบ" ที่เลือกได้ เมื่อทราบเวลาเริ่มแล้ว
+ * คืนรายการ "End" ที่เลือกได้ เมื่อทราบเวลาเริ่มแล้ว
  * โดยจะหยุดที่การจองถัดไปที่ใกล้ที่สุด หรือ 17:30 เป็นอย่างช้าที่สุด
  */
 function getAvailableEndTimes(dateStr, room, startTime) {
