@@ -1,12 +1,12 @@
 /**
- * ระบบจองห้องประชุม SPK OFFICE
+ * RESERVATIONS SPK OFFICE
  * ผูก script นี้กับ Google Sheet ปลายทาง (Extensions > Apps Script)
  * ข้อมูลจะถูกบันทึกลงชีทชื่อ "Reservations" (จะถูกสร้างอัตโนมัติถ้ายังไม่มี)
  */
 
 var SHEET_NAME = 'Reservations';
 
-var ROOMS = ['MR-1', 'MR-2', 'MR-3 FL.3', 'MR-3 FL.3', 'MR-4 FL.4', 'MR-4 FL.4'];
+var ROOMS = ['MR-1', 'MR-2', 'MR-3 FL.3', 'MR-4 FL.3', 'MR-5 FL.4', 'MR-6 FL.4'];
 
 var START_HOUR = 8;
 var START_MIN = 30;
@@ -18,7 +18,7 @@ var HEADERS = ['Date', 'Room', 'Start', 'End', 'Name', 'Tel'];
 
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('index')
-    .setTitle('ระบบจองห้องประชุม SPK OFFICE')
+    .setTitle('RESERVATIONS SPK OFFICE')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
