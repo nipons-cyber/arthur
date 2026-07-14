@@ -6,7 +6,27 @@
 
 var SHEET_NAME = 'Reservations';
 
-var ROOMS = ['MR-1', 'MR-2', 'MR-3 FL.3', 'MR-4 FL.3', 'MR-5 FL.4', 'MR-6 FL.4'];
+/**
+ * รายการห้องประชุม
+ * - name   : ชื่อห้อง
+ * - seats  : จำนวนที่นั่ง
+ * - locked : true = ยังไม่เปิดให้จอง (แสดงในรายการแต่จองไม่ได้)
+ */
+var ROOMS = [
+  { name: 'Stark',          seats: 6,  locked: true },
+  { name: 'Maverick',       seats: 18, locked: false },
+  { name: 'Gump',           seats: 40, locked: true },
+  { name: 'Sherlock',       seats: 18, locked: false },
+  { name: 'Wayne',          seats: 6,  locked: false },
+  { name: 'Thor',           seats: 6,  locked: false },
+  { name: 'Hermione',       seats: 6,  locked: false },
+  { name: 'Yoda',           seats: 30, locked: true },
+  { name: 'Platform 9-3/4', seats: 8,  locked: true },
+  { name: 'Natasha',        seats: 8,  locked: true },
+  { name: 'Dumbledore',     seats: 18, locked: true },
+  { name: 'Hulk',           seats: 6,  locked: false },
+  { name: 'Parker',         seats: 4,  locked: false }
+];
 
 var START_HOUR = 8;
 var START_MIN = 30;
@@ -14,7 +34,9 @@ var END_HOUR = 17;
 var END_MIN = 30;
 var SLOT_MINUTES = 30;
 
-var HEADERS = ['Date', 'Room', 'Start', 'End', 'Name', 'Tel'];
+var MAX_REPEAT = 52; // จำกัดจำนวนครั้งของการจองซ้ำ (กันจองยาวเกินไป)
+
+var HEADERS = ['Date', 'Room', 'Start', 'End', 'Name', 'Tel', 'BookingID'];
 
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('index')
@@ -31,18 +53,35 @@ function getSheet_() {
   }
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(HEADERS);
+  } else {
+    // เติมหัวคอลัมน์ "BookingID" ให้ชีทเดิมที่สร้างก่อนมีฟีเจอร์ยกเลิก
+    var headerRow = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0];
+    if (headerRow[6] !== 'BookingID') {
+      sheet.getRange(1, 7).setValue('BookingID');
+    }
   }
-  // บังคับคอลัมน์ Date / Start / End / Tel ให้เป็นข้อความเสมอ
+  // บังคับคอลัมน์ Date / Start / End / Tel / BookingID ให้เป็นข้อความเสมอ
   // กัน Google Sheets auto-convert เป็นค่า Date/Time/Number ซึ่งจะทำให้เทียบเวลาชนกันผิดพลาด
-  // (จองห้องซ้ำเวลาเดิมได้) และเบอร์โทรที่ขึ้นต้นด้วย 0 ถูกตัดเลข 0 ทิ้ง
   sheet.getRange('A:A').setNumberFormat('@');
   sheet.getRange('C:D').setNumberFormat('@');
-  sheet.getRange('F:F').setNumberFormat('@');
+  sheet.getRange('F:G').setNumberFormat('@');
   return sheet;
 }
 
+/**
+ * คืนรายการห้องทั้งหมด (รวมห้องที่ล็อกไว้) ให้ frontend แสดงผล
+ */
 function getRooms() {
   return ROOMS;
+}
+
+function isRoomBookable_(roomName) {
+  for (var i = 0; i < ROOMS.length; i++) {
+    if (ROOMS[i].name === roomName) {
+      return !ROOMS[i].locked;
+    }
+  }
+  return false;
 }
 
 function generateTimeSlots_() {
@@ -82,6 +121,16 @@ function formatDateKey_(dateValue) {
     return Utilities.formatDate(dateValue, Session.getScriptTimeZone(), 'yyyy-MM-dd');
   }
   return String(dateValue).trim();
+}
+
+/**
+ * บวกวันให้กับสตริงวันที่รูปแบบ yyyy-MM-dd แล้วคืนสตริงรูปแบบเดิม
+ */
+function addDaysToDateStr_(dateStr, days) {
+  var parts = String(dateStr).split('-');
+  var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  d.setDate(d.getDate() + days);
+  return Utilities.formatString('%04d-%02d-%02d', d.getFullYear(), d.getMonth() + 1, d.getDate());
 }
 
 function getBookingsForRoomDate_(dateStr, room) {
@@ -172,38 +221,170 @@ function getAvailableEndTimes(dateStr, room, startTime) {
 }
 
 /**
- * บันทึกการจองใหม่ลง Google Sheets
- * form = { date, room, startTime, endTime, name, phone }
+ * บันทึกการจองใหม่ลง Google Sheets (รองรับการจองซ้ำแบบ repeat)
+ * form = { date, room, startTime, endTime, name, phone, repeatType, repeatCount }
+ *   repeatType : 'none' | 'daily' | 'weekly'
+ *   repeatCount: จำนวนครั้งรวมครั้งแรก (ใช้เมื่อ repeatType != 'none')
  */
 function submitReservation(form) {
   if (!form || !form.date || !form.room || !form.startTime || !form.endTime || !form.name || !form.phone) {
-    return { success: false, message: 'กรุณากรอกข้อมูลให้ครบถ้วน' };
+    return { success: false, message: 'Please fill in all fields.' };
   }
-  if (ROOMS.indexOf(form.room) === -1) {
-    return { success: false, message: 'ห้องประชุมไม่ถูกต้อง' };
+  if (isRoomBookable_(form.room) === false) {
+    return { success: false, message: 'Room ' + form.room + ' is not open for booking yet. Please choose another room.' };
   }
 
   var startMin = timeToMinutes_(form.startTime);
   var endMin = timeToMinutes_(form.endTime);
   if (isNaN(startMin) || isNaN(endMin) || endMin <= startMin) {
-    return { success: false, message: 'ช่วงเวลาไม่ถูกต้อง' };
+    return { success: false, message: 'Invalid time range.' };
+  }
+
+  // สร้างรายการวันที่ทั้งหมดตามรูปแบบการจองซ้ำ
+  var repeatType = form.repeatType || 'none';
+  var count = 1;
+  var step = 0;
+  if (repeatType === 'daily') { step = 1; }
+  else if (repeatType === 'weekly') { step = 7; }
+
+  if (step > 0) {
+    count = parseInt(form.repeatCount, 10);
+    if (isNaN(count) || count < 1) count = 1;
+    if (count > MAX_REPEAT) count = MAX_REPEAT;
+  }
+
+  var dates = [];
+  for (var i = 0; i < count; i++) {
+    dates.push(step === 0 ? form.date : addDaysToDateStr_(form.date, i * step));
   }
 
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    var bookings = getBookingsForRoomDate_(form.date, form.room);
-    var overlap = bookings.some(function (b) {
-      return startMin < b.end && endMin > b.start;
-    });
-    if (overlap) {
-      return { success: false, message: 'ช่วงเวลานี้ถูกจองไปแล้ว กรุณาเลือกเวลาอื่น' };
+    var sheet = getSheet_();
+    var booked = [];
+    var conflicts = [];
+    var rowsToAdd = [];
+
+    for (var j = 0; j < dates.length; j++) {
+      var d = dates[j];
+      var existing = getBookingsForRoomDate_(d, form.room);
+      var overlap = existing.some(function (b) {
+        return startMin < b.end && endMin > b.start;
+      });
+      if (overlap) {
+        conflicts.push(d);
+      } else {
+        rowsToAdd.push([d, form.room, form.startTime, form.endTime, form.name, form.phone, Utilities.getUuid()]);
+        booked.push(d);
+      }
     }
 
+    if (rowsToAdd.length > 0) {
+      sheet.getRange(sheet.getLastRow() + 1, 1, rowsToAdd.length, HEADERS.length).setValues(rowsToAdd);
+      SpreadsheetApp.flush(); // เขียนลงชีทจริงก่อนปลดล็อก กันคำขอที่รออยู่อ่านข้อมูลเก่า
+    }
+
+    if (booked.length === 0) {
+      var failMsg = step === 0
+        ? 'This time slot is already booked. Please choose another time.'
+        : 'Every selected date is already booked at this time. Please choose another time.';
+      return { success: false, message: failMsg, booked: 0, conflicts: conflicts };
+    }
+
+    var msg;
+    if (step === 0) {
+      msg = 'Room ' + form.room + ' booked successfully.';
+    } else {
+      msg = 'Room ' + form.room + ' booked successfully: ' + booked.length + ' booking(s).';
+      if (conflicts.length > 0) {
+        msg += ' (Skipped ' + conflicts.length + ' already-booked date(s): ' + conflicts.join(', ') + ')';
+      }
+    }
+    return { success: true, message: msg, booked: booked.length, conflicts: conflicts };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * ค้นหาการจองในอนาคต (วันนี้เป็นต้นไป) ตามเบอร์ติดต่อ เพื่อใช้ในหน้ายกเลิกการจอง
+ * จะเติมรหัสการจอง (UUID) ให้แถวเก่าที่ยังไม่มี เพื่อให้ยกเลิกได้อย่างแม่นยำ
+ */
+function getBookingsByPhone(phone) {
+  if (!phone) return [];
+  var target = String(phone).trim();
+  if (target === '') return [];
+
+  var sheet = getSheet_();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+
+  var data = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
+  var todayKey = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  var results = [];
+  var backfilled = false;
+
+  for (var i = 0; i < data.length; i++) {
+    var row = data[i];
+    if (String(row[5]).trim() !== target) continue;
+    var rowDate = formatDateKey_(row[0]);
+    if (rowDate < todayKey) continue; // ข้ามการจองที่ผ่านไปแล้ว (เทียบสตริง yyyy-MM-dd ได้ตรง)
+
+    var id = row[6];
+    if (!id) {
+      id = Utilities.getUuid();
+      sheet.getRange(i + 2, 7).setValue(id);
+      backfilled = true;
+    }
+    results.push({
+      id: id,
+      date: rowDate,
+      room: row[1],
+      startTime: formatTimeValue_(row[2]),
+      endTime: formatTimeValue_(row[3]),
+      name: row[4]
+    });
+  }
+
+  if (backfilled) SpreadsheetApp.flush();
+
+  results.sort(function (a, b) {
+    if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+    return timeToMinutes_(a.startTime) - timeToMinutes_(b.startTime);
+  });
+  return results;
+}
+
+/**
+ * ยกเลิก (ลบ) การจองตามรหัสการจอง โดยตรวจเบอร์ติดต่อให้ตรงกันก่อนเพื่อความปลอดภัย
+ */
+function cancelReservation(bookingId, phone) {
+  if (!bookingId) {
+    return { success: false, message: 'Booking ID not found.' };
+  }
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
     var sheet = getSheet_();
-    sheet.appendRow([form.date, form.room, form.startTime, form.endTime, form.name, form.phone]);
-    SpreadsheetApp.flush(); // เขียนลงชีทจริงก่อนปลดล็อก กันคำขอที่รออยู่อ่านข้อมูลเก่า
-    return { success: true, message: 'บันทึกการจองห้อง ' + form.room + ' สำเร็จ' };
+    var lastRow = sheet.getLastRow();
+    if (lastRow < 2) {
+      return { success: false, message: 'Booking not found (it may have already been cancelled).' };
+    }
+
+    var data = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
+    for (var i = 0; i < data.length; i++) {
+      if (String(data[i][6]) === String(bookingId)) {
+        if (phone && String(data[i][5]).trim() !== String(phone).trim()) {
+          return { success: false, message: 'Phone number does not match this booking.' };
+        }
+        sheet.deleteRow(i + 2);
+        SpreadsheetApp.flush();
+        return { success: true, message: 'Booking cancelled successfully.' };
+      }
+    }
+    return { success: false, message: 'Booking not found (it may have already been cancelled).' };
   } finally {
     lock.releaseLock();
   }
