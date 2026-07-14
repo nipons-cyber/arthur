@@ -130,6 +130,51 @@
       gap: 12px;
     }
 
+    .seat-badge {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--ig-3);
+      background: #faf2fd;
+      border: 1px solid #f0e0f5;
+      border-radius: 999px;
+      padding: 4px 10px;
+    }
+
+    /* ----- Equipment checkboxes ----- */
+    .equipment-box {
+      background: #faf7fc;
+      border: 1px solid #f0e6f3;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 18px;
+    }
+    .equipment-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .equipment-option {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 13.5px;
+      color: var(--ink);
+      background: #fff;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 12px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .equipment-option input {
+      width: auto;
+      margin: 0;
+      accent-color: var(--ig-3);
+    }
+
     select, input {
       width: 100%;
       font-family: 'Kanit', sans-serif;
@@ -376,6 +421,7 @@
           <select id="room" required>
             <option value="" disabled selected>-- Select Room --</option>
           </select>
+          <span class="seat-badge" id="roomSeatsBadge" style="display:none;"></span>
         </div>
 
         <div class="field">
@@ -387,7 +433,7 @@
           <div>
             <label for="startTime">Start</label>
             <select id="startTime" required disabled>
-              <option value="" selected>-- Select room/date first --</option>
+              <option value="" selected>-- Select room and date first --</option>
             </select>
           </div>
           <div>
@@ -418,6 +464,11 @@
             <input type="number" id="repeatCount" min="2" max="52" step="1" value="4">
             <div class="hint" id="repeatHint">Books consecutively and skips any dates already taken.</div>
           </div>
+        </div>
+
+        <div class="equipment-box">
+          <label>Beverage / Equipment Needed (เครื่องดื่ม / อุปกรณ์ที่ขอใช้)</label>
+          <div class="equipment-options" id="equipmentOptions"></div>
         </div>
 
         <div class="field">
@@ -477,6 +528,9 @@
     var repeatType = document.getElementById('repeatType');
     var repeatCountWrap = document.getElementById('repeatCountWrap');
     var repeatCount = document.getElementById('repeatCount');
+    var roomSeatsBadge = document.getElementById('roomSeatsBadge');
+    var equipmentOptions = document.getElementById('equipmentOptions');
+    var roomSeats = {};
 
     var cancelPhone = document.getElementById('cancelPhone');
     var cancelHint = document.getElementById('cancelHint');
@@ -601,6 +655,7 @@
         def.textContent = '-- Select Room --';
         roomSelect.appendChild(def);
         rooms.forEach(function (r) {
+          roomSeats[r.name] = r.seats;
           var opt = document.createElement('option');
           opt.value = r.name;
           if (r.locked) {
@@ -614,6 +669,37 @@
       }).withFailureHandler(function (err) {
         showModal('fail', 'Failed to Load', 'Could not load the room list: ' + err.message);
       }).getRooms();
+    }
+
+    function updateSeatBadge() {
+      var seats = roomSeats[roomSelect.value];
+      if (seats) {
+        roomSeatsBadge.textContent = '👥 ' + seats + ' seats';
+        roomSeatsBadge.style.display = 'inline-block';
+      } else {
+        roomSeatsBadge.style.display = 'none';
+      }
+    }
+
+    function loadEquipmentOptions() {
+      google.script.run.withSuccessHandler(function (options) {
+        equipmentOptions.innerHTML = '';
+        (options || []).forEach(function (name, i) {
+          var label = document.createElement('label');
+          label.className = 'equipment-option';
+          var cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.value = name;
+          cb.id = 'equipment-' + i;
+          var span = document.createElement('span');
+          span.textContent = name;
+          label.appendChild(cb);
+          label.appendChild(span);
+          equipmentOptions.appendChild(label);
+        });
+      }).withFailureHandler(function () {
+        equipmentOptions.innerHTML = '';
+      }).getEquipmentOptions();
     }
 
     function renderBookedList(bookings) {
@@ -653,14 +739,32 @@
       var date = dateInput.value;
 
       resetSelect(endSelect, '-- Select start first --');
-      slotHint.textContent = '';
-      slotHint.className = 'hint';
 
       if (!room || !date) {
-        resetSelect(startSelect, '-- Select room/date first --');
+        // บอกให้ชัดว่าขาดอะไร กันเคสเลือกวันที่ก่อนแล้วงงว่าทำไมเลือกเวลาไม่ได้
+        // (เวลาจะเลือกได้ก็ต่อเมื่อเลือกทั้งห้องและวันที่ครบแล้วเท่านั้น)
+        var missing;
+        if (!room && !date) {
+          missing = '-- Select room and date first --';
+        } else if (!room) {
+          missing = '-- Please select a room first --';
+        } else {
+          missing = '-- Please select a date first --';
+        }
+        resetSelect(startSelect, missing);
+        if (!room) {
+          slotHint.textContent = 'Please select a room above before picking a time.';
+          slotHint.className = 'hint error';
+        } else {
+          slotHint.textContent = 'Please select a date above before picking a time.';
+          slotHint.className = 'hint error';
+        }
         renderBookedList([]);
         return;
       }
+
+      slotHint.textContent = '';
+      slotHint.className = 'hint';
 
       startSelect.disabled = true;
       startSelect.innerHTML = '<option value="" selected>Checking availability...</option>';
@@ -700,6 +804,7 @@
       }).getAvailableEndTimes(date, room, start);
     }
 
+    roomSelect.addEventListener('change', updateSeatBadge);
     roomSelect.addEventListener('change', refreshStartTimes);
     dateInput.addEventListener('change', refreshStartTimes);
     startSelect.addEventListener('change', refreshEndTimes);
@@ -711,6 +816,10 @@
     bookingForm.addEventListener('submit', function (e) {
       e.preventDefault();
 
+      var checkedEquipment = Array.prototype.slice
+        .call(equipmentOptions.querySelectorAll('input[type="checkbox"]:checked'))
+        .map(function (cb) { return cb.value; });
+
       var payload = {
         date: dateInput.value,
         room: roomSelect.value,
@@ -719,7 +828,8 @@
         name: document.getElementById('name').value.trim(),
         phone: document.getElementById('phone').value.trim(),
         repeatType: repeatType.value,
-        repeatCount: parseInt(repeatCount.value, 10) || 1
+        repeatCount: parseInt(repeatCount.value, 10) || 1,
+        equipment: checkedEquipment
       };
 
       if (!payload.date || !payload.room || !payload.startTime || !payload.endTime || !payload.name || !payload.phone) {
@@ -737,11 +847,12 @@
           if (res && res.success) {
             showModal('success', 'Booking Successful', res.message);
             bookingForm.reset();
-            resetSelect(startSelect, '-- Select room/date first --');
+            resetSelect(startSelect, '-- Select room and date first --');
             resetSelect(endSelect, '-- Select start first --');
             slotHint.textContent = '';
             renderBookedList([]);
             repeatCountWrap.classList.remove('show');
+            roomSeatsBadge.style.display = 'none';
           } else {
             showModal('fail', 'Booking Failed', (res && res.message) || 'Could not save the booking. Please try again.');
             refreshStartTimes();
@@ -839,6 +950,7 @@
     cancelSearchBtn.addEventListener('click', searchCancelBookings);
 
     loadRooms();
+    loadEquipmentOptions();
   </script>
 </body>
 </html>
