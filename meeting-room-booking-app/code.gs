@@ -36,7 +36,12 @@ var SLOT_MINUTES = 30;
 
 var MAX_REPEAT = 52; // จำกัดจำนวนครั้งของการจองซ้ำ (กันจองยาวเกินไป)
 
-var HEADERS = ['Date', 'Room', 'Start', 'End', 'Name', 'Tel', 'BookingID'];
+var HEADERS = ['Date', 'Room', 'Start', 'End', 'Name', 'Tel', 'BookingID', 'Equipment'];
+
+/**
+ * ตัวเลือกเครื่องดื่ม/อุปกรณ์ที่ขอใช้ (แสดงเป็น checkbox บนฟอร์มจอง)
+ */
+var EQUIPMENT_OPTIONS = ['น้ำดื่ม', 'Dongle'];
 
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('index')
@@ -54,17 +59,20 @@ function getSheet_() {
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(HEADERS);
   } else {
-    // เติมหัวคอลัมน์ "BookingID" ให้ชีทเดิมที่สร้างก่อนมีฟีเจอร์ยกเลิก
+    // เติมหัวคอลัมน์ "BookingID" / "Equipment" ให้ชีทเดิมที่สร้างก่อนมีฟีเจอร์เหล่านี้
     var headerRow = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0];
     if (headerRow[6] !== 'BookingID') {
       sheet.getRange(1, 7).setValue('BookingID');
     }
+    if (headerRow[7] !== 'Equipment') {
+      sheet.getRange(1, 8).setValue('Equipment');
+    }
   }
-  // บังคับคอลัมน์ Date / Start / End / Tel / BookingID ให้เป็นข้อความเสมอ
+  // บังคับคอลัมน์ Date / Start / End / Tel / BookingID / Equipment ให้เป็นข้อความเสมอ
   // กัน Google Sheets auto-convert เป็นค่า Date/Time/Number ซึ่งจะทำให้เทียบเวลาชนกันผิดพลาด
   sheet.getRange('A:A').setNumberFormat('@');
   sheet.getRange('C:D').setNumberFormat('@');
-  sheet.getRange('F:G').setNumberFormat('@');
+  sheet.getRange('F:H').setNumberFormat('@');
   return sheet;
 }
 
@@ -73,6 +81,13 @@ function getSheet_() {
  */
 function getRooms() {
   return ROOMS;
+}
+
+/**
+ * คืนรายการตัวเลือกเครื่องดื่ม/อุปกรณ์ที่ขอใช้ ให้ frontend แสดงเป็น checkbox
+ */
+function getEquipmentOptions() {
+  return EQUIPMENT_OPTIONS;
 }
 
 function isRoomBookable_(roomName) {
@@ -258,6 +273,9 @@ function submitReservation(form) {
     dates.push(step === 0 ? form.date : addDaysToDateStr_(form.date, i * step));
   }
 
+  // เครื่องดื่ม/อุปกรณ์ที่ขอใช้ (ไม่บังคับ) - รับเป็น array แล้วเก็บลงชีทเป็นสตริงคั่นด้วยจุลภาค
+  var equipment = Array.isArray(form.equipment) ? form.equipment.join(', ') : (form.equipment || '');
+
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
@@ -275,7 +293,7 @@ function submitReservation(form) {
       if (overlap) {
         conflicts.push(d);
       } else {
-        rowsToAdd.push([d, form.room, form.startTime, form.endTime, form.name, form.phone, Utilities.getUuid()]);
+        rowsToAdd.push([d, form.room, form.startTime, form.endTime, form.name, form.phone, Utilities.getUuid(), equipment]);
         booked.push(d);
       }
     }
