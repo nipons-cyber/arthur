@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบจองห้องประชุม นครสวรรค์</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Kanit:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+  <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html{font-size:16px;}
+    body{
+      font-family:'Sarabun',sans-serif;
+      min-height:100vh;
+      background:
+        linear-gradient(135deg,rgba(15,23,42,.72) 0%,rgba(30,27,75,.65) 100%),
+        url('https://images.unsplash.com/photo-1431540015161-0bf868a2d407?auto=format&fit=crop&w=1920&q=80')
+        no-repeat center center fixed;
+      background-size:cover;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding:28px 16px 48px;
+    }
+
+    /* Card */
+    .card{background:#fff;max-width:880px;width:100%;border-radius:20px;box-shadow:0 24px 64px rgba(0,0,0,.35);overflow:hidden;}
+
+    /* Header */
+    .card-header{
+      background:linear-gradient(135deg,#1e1b4b 0%,#312e81 45%,#4f46e5 100%);
+      padding:32px 40px 26px;position:relative;overflow:hidden;
+    }
+    .card-header::after{
+      content:'';position:absolute;inset:0;
+      background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    .card-header h1{font-family:'Kanit',sans-serif;font-size:1.75rem;font-weight:600;color:#fff;letter-spacing:.5px;position:relative;}
+    .card-header p{font-size:.9rem;color:rgba(255,255,255,.65);margin-top:4px;position:relative;}
+    .badge-org{
+      display:inline-block;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);
+      color:#c7d2fe;font-size:.75rem;font-weight:500;padding:3px 12px;border-radius:100px;
+      margin-bottom:10px;letter-spacing:.6px;position:relative;
+    }
+
+    /* Tabs */
+    .tabs-nav{display:flex;background:#f8fafc;border-bottom:1px solid #e2e8f0;}
+    .tab-btn{
+      flex:1;padding:16px 10px;border:none;background:transparent;
+      font-family:'Sarabun',sans-serif;font-size:1rem;font-weight:500;color:#64748b;
+      cursor:pointer;transition:all .25s;border-bottom:3px solid transparent;
+      display:flex;align-items:center;justify-content:center;gap:7px;
+    }
+    .tab-btn .icon{font-size:1.15rem;line-height:1;}
+    .tab-btn:hover{color:#4f46e5;background:#f1f5fe;}
+    .tab-btn.active{color:#4f46e5;border-bottom-color:#4f46e5;background:#fff;font-weight:600;}
+
+    /* Tab Content */
+    .tab-content{display:none;padding:32px 40px 40px;}
+    .tab-content.active{display:block;}
+
+    /* Section Label */
+    .section-label{
+      font-size:.7rem;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;
+      color:#94a3b8;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #f1f5f9;
+    }
+
+    /* Form */
+    .form-row{display:flex;gap:16px;margin-bottom:18px;}
+    .form-row .form-group{flex:1;min-width:0;}
+    .form-group{margin-bottom:18px;}
+    label{display:block;font-size:.875rem;font-weight:600;color:#374151;margin-bottom:6px;}
+    label .req{color:#ef4444;margin-left:2px;}
+
+    /* Inputs */
+    input[type="text"],input[type="number"],input[type="date"],input[type="email"],select{
+      width:100%;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:10px;
+      font-family:'Sarabun',sans-serif;font-size:.95rem;color:#1e293b;background:#fff;
+      outline:none;transition:border-color .2s,box-shadow .2s;appearance:none;-webkit-appearance:none;
+    }
+    input:focus,select:focus{border-color:#4f46e5;box-shadow:0 0 0 3px rgba(79,70,229,.12);}
+    select{
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;
+    }
+    input:disabled,select:disabled{background:#f8fafc;color:#94a3b8;cursor:not-allowed;}
+
+    /* Equipment */
+    .equipment-box{
+      background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;
+      padding:16px 20px;display:flex;flex-direction:column;gap:12px;
+    }
+    .eq-row{display:flex;align-items:center;gap:10px;}
+    .eq-row input[type="checkbox"]{width:18px;height:18px;accent-color:#4f46e5;cursor:pointer;flex-shrink:0;}
+    .eq-row label{margin:0;font-weight:400;font-size:.9rem;color:#374151;}
+    .eq-num{width:70px !important;padding:6px 10px !important;text-align:center;}
+
+    /* Signature */
+    .sig-wrap{
+      border:2px dashed #cbd5e1;border-radius:12px;background:#fafafa;
+      position:relative;overflow:hidden;height:150px;touch-action:none;cursor:crosshair;
+    }
+    .sig-wrap canvas{display:block;width:100%;height:100%;}
+    .sig-wrap:hover{border-color:#4f46e5;}
+    .sig-hint{
+      position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+      pointer-events:none;color:#cbd5e1;font-size:.85rem;gap:6px;
+    }
+    .sig-hint.hidden{display:none;}
+    .btn-clear-sig{
+      position:absolute;bottom:8px;right:10px;background:#ef4444;color:#fff;border:none;
+      border-radius:6px;padding:4px 10px;font-size:.75rem;font-family:'Sarabun',sans-serif;
+      cursor:pointer;transition:background .2s;
+    }
+    .btn-clear-sig:hover{background:#dc2626;}
+
+    /* Submit */
+    .btn-submit{
+      width:100%;margin-top:8px;padding:15px;border:none;border-radius:12px;
+      background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);color:#fff;
+      font-family:'Sarabun',sans-serif;font-size:1.1rem;font-weight:600;letter-spacing:.3px;
+      cursor:pointer;transition:opacity .2s,box-shadow .2s,transform .15s;
+      box-shadow:0 4px 14px rgba(79,70,229,.35);
+    }
+    .btn-submit:hover{opacity:.92;box-shadow:0 6px 20px rgba(79,70,229,.45);transform:translateY(-1px);}
+    .btn-submit:active{transform:translateY(0);}
+
+    /* Calendar */
+    #calendar{background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:16px;margin-bottom:32px;}
+    .fc .fc-toolbar-title{font-family:'Kanit',sans-serif;font-size:1.1rem;}
+    .fc .fc-button{background:#4f46e5 !important;border-color:#4f46e5 !important;font-family:'Sarabun',sans-serif !important;}
+    .fc .fc-button:hover{background:#4338ca !important;}
+    .fc-event{font-size:.78rem;border-radius:4px !important;}
+
+    /* Table */
+    .table-wrap{overflow-x:auto;}
+    table{width:100%;border-collapse:collapse;font-size:.875rem;}
+    thead th{background:#f1f5f9;color:#475569;font-weight:600;padding:12px 14px;text-align:left;white-space:nowrap;}
+    tbody td{padding:12px 14px;border-bottom:1px solid #f1f5f9;color:#374151;vertical-align:middle;}
+    tbody tr:last-child td{border-bottom:none;}
+    tbody tr:hover td{background:#fafafa;}
+    .tag-room{
+      display:inline-block;background:#ede9fe;color:#5b21b6;
+      font-size:.75rem;font-weight:600;padding:2px 10px;border-radius:100px;
+    }
+
+    /* Status badges */
+    .tag-status{display:inline-block;font-size:.75rem;font-weight:600;padding:3px 10px;border-radius:100px;white-space:nowrap;}
+    .tag-wait  {background:#fef3c7;color:#92400e;}
+    .tag-ok    {background:#dcfce7;color:#14532d;}
+    .tag-reject{background:#fee2e2;color:#7f1d1d;}
+
+    .btn-pdf{
+      display:inline-flex;align-items:center;gap:5px;background:#4f46e5;color:#fff;border:none;
+      padding:6px 14px;border-radius:8px;font-size:.8rem;font-family:'Sarabun',sans-serif;
+      font-weight:500;cursor:pointer;transition:background .2s;white-space:nowrap;
+    }
+    .btn-pdf:hover{background:#4338ca;}
+
+    /* History pagination */
+    .history-pagination{
+      display:flex;align-items:center;justify-content:center;gap:16px;
+      margin-top:18px;flex-wrap:wrap;
+    }
+    .btn-page{
+      display:inline-flex;align-items:center;gap:6px;background:#fff;color:#4f46e5;
+      border:1.5px solid #c7d2fe;padding:8px 18px;border-radius:10px;
+      font-family:'Sarabun',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;
+      transition:all .2s;
+    }
+    .btn-page:hover:not(:disabled){background:#eef2ff;border-color:#a5b4fc;}
+    .btn-page:disabled{opacity:.4;cursor:not-allowed;}
+    #historyPageInfo{font-size:.85rem;color:#64748b;font-weight:600;min-width:110px;text-align:center;}
+
+    /* Admin link */
+    .admin-link-wrap{text-align:center;margin-top:16px;}
+    .admin-link-wrap a{
+      color:rgba(255,255,255,.18);font-size:.85rem;text-decoration:none;letter-spacing:1px;
+      display:inline-block;padding:6px 10px;border-radius:8px;transition:color .2s,background .2s;
+    }
+    .admin-link-wrap a:hover{color:rgba(255,255,255,.55);background:rgba(255,255,255,.08);}
+
+    @media(max-width:640px){
+      .card-header{padding:24px 20px 20px;}
+      .tab-content{padding:20px 16px 28px;}
+      .form-row{flex-direction:column;gap:0;}
+      .card-header h1{font-size:1.35rem;}
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- Header -->
+  <div class="card-header">
+    <div class="badge-org">สำนักงานหลักสูตร วท.บ.สุขภาพดิจิทัล</div>
+    <h1>ระบบจองห้องประชุม</h1>
+    <p>กรุณากรอกข้อมูลให้ครบถ้วนก่อนยืนยันการจอง</p>
+  </div>
+
+  <!-- Tabs Nav -->
+  <div class="tabs-nav">
+    <button class="tab-btn active" id="btn-booking" onclick="switchTab('booking-tab')">
+      <i class='bx bx-edit-alt icon'></i> ฟอร์มจองห้องประชุม
+    </button>
+    <button class="tab-btn" id="btn-calendar" onclick="switchTab('calendar-tab')">
+      <i class='bx bx-calendar icon'></i> ปฏิทิน & ประวัติการจอง
+    </button>
+  </div>
+
+  <!-- ════════ BOOKING FORM ════════ -->
+  <div id="booking-tab" class="tab-content active">
+    <form id="bookingForm" onsubmit="handleFormSubmit(event)">
+
+      <p class="section-label">ข้อมูลการจอง</p>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="room">ชื่อห้องที่ต้องการจอง <span class="req">*</span></label>
+          <select id="room" name="room" required onchange="checkAvailableSlots()">
+            <option value="">— เลือกห้องประชุม —</option>
+            <option value="ห้องประชุมใหญ่ชั้น 4">ห้องประชุมใหญ่ ชั้น 4</option>
+            <option value="ห้องประชุมย่อย ชั้น 3">ห้องประชุมย่อย ชั้น 3</option>
+            <option value="ห้องประชุมย่อย ชั้น 2">ห้องประชุมย่อย ชั้น 2</option>
+            <option value="พื้นที่กิจกรรมอื่น">พื้นที่กิจกรรมอื่น</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="date">วันที่ต้องการใช้งาน <span class="req">*</span></label>
+          <input type="date" id="date" name="date" required onchange="checkAvailableSlots()">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="start_time">เวลาเริ่มประชุม <span class="req">*</span></label>
+          <select id="start_time" name="start_time" required disabled onchange="updateEndTimeOptions()">
+            <option value="">— เลือกห้องและวันที่ก่อน —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="end_time">ถึงเวลา <span class="req">*</span></label>
+          <select id="end_time" name="end_time" required disabled>
+            <option value="">— เลือกเวลาเริ่มก่อน —</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="project_name">ชื่อโครงการ / กิจกรรม <span class="req">*</span></label>
+          <input type="text" id="project_name" name="project_name" required placeholder="ระบุเรื่องหรือกิจกรรม">
+        </div>
+        <div class="form-group">
+          <label for="participants">จำนวนผู้เข้าร่วม (คน) <span class="req">*</span></label>
+          <input type="number" id="participants" name="participants" min="1" required placeholder="0">
+        </div>
+      </div>
+
+      <p class="section-label" style="margin-top:6px">อาหาร / อุปกรณ์ที่ขอใช้</p>
+      <div class="form-group">
+        <div class="equipment-box">
+          <div class="eq-row">
+            <input type="checkbox" id="eq_breakfast" name="eq_breakfast" value="Yes">
+            <label for="eq_breakfast">อาหารว่างเช้า</label>
+            <span style="color:#64748b;font-size:.85rem">จำนวน</span>
+            <input type="number" id="eq_breakfast_qty" name="eq_breakfast_qty" class="eq-num" min="0" value="0">
+            <span style="color:#64748b;font-size:.85rem">ชุด</span>
+          </div>
+          <div class="eq-row">
+            <input type="checkbox" id="eq_lunch" name="eq_lunch" value="Yes">
+            <label for="eq_lunch">อาหารกลางวัน</label>
+            <span style="color:#64748b;font-size:.85rem">จำนวน</span>
+            <input type="number" id="eq_lunch_qty" name="eq_lunch_qty" class="eq-num" min="0" value="0">
+            <span style="color:#64748b;font-size:.85rem">ชุด</span>
+          </div>
+          <div class="eq-row">
+            <input type="checkbox" id="eq_afternoon" name="eq_afternoon" value="Yes">
+            <label for="eq_afternoon">อาหารว่างบ่าย</label>
+            <span style="color:#64748b;font-size:.85rem">จำนวน</span>
+            <input type="number" id="eq_afternoon_qty" name="eq_afternoon_qty" class="eq-num" min="0" value="0">
+            <span style="color:#64748b;font-size:.85rem">ชุด</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="section-label" style="margin-top:6px">ข้อมูลผู้จอง</p>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="requester_name">ชื่อผู้จอง <span class="req">*</span></label>
+          <input type="text" id="requester_name" name="requester_name" required>
+        </div>
+        <div class="form-group">
+          <label for="position">ตำแหน่ง / หน่วยงาน <span class="req">*</span></label>
+          <input type="text" id="position" name="position" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="phone">เบอร์ติดต่อ <span class="req">*</span></label>
+          <input type="text" id="phone" name="phone" required placeholder="0xx-xxx-xxxx">
+        </div>
+        <div class="form-group">
+          <label for="email">อีเมลผู้จอง <span class="req">*</span></label>
+          <input type="email" id="email" name="email" required placeholder="example@email.com">
+        </div>
+      </div>
+
+      <p class="section-label" style="margin-top:6px">ลายเซ็นผู้จอง</p>
+      <div class="form-group">
+        <div class="sig-wrap" id="sigWrap">
+          <canvas id="sig-canvas"></canvas>
+          <div class="sig-hint" id="sigHint"><i class='bx bx-pencil'></i> วาดลายเซ็นที่นี่</div>
+          <button type="button" class="btn-clear-sig" id="sig-clearBtn">ล้าง</button>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-submit">ยืนยันการจองห้องประชุม</button>
+    </form>
+  </div>
+
+  <!-- ════════ CALENDAR TAB ════════ -->
+  <div id="calendar-tab" class="tab-content">
+    <div id="calendar"></div>
+
+    <p class="section-label">รายการประวัติการจองและดาวน์โหลดแบบฟอร์ม</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>วันที่ใช้งาน</th>
+            <th>ห้องประชุม</th>
+            <th>เวลา</th>
+            <th>โครงการ / ผู้จอง</th>
+            <th>สถานะ</th>
+            <th>เอกสาร</th>
+          </tr>
+        </thead>
+        <tbody id="history-tbody">
+          <tr>
+            <td colspan="6" style="text-align:center;color:#94a3b8;padding:24px">
+              กำลังโหลดข้อมูล…
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="history-pagination" id="historyPagination">
+      <button class="btn-page" id="historyPrevBtn" onclick="changeHistoryPage(-1)" disabled>
+        <i class='bx bx-chevron-left'></i> ย้อนกลับ
+      </button>
+      <span id="historyPageInfo">หน้า 1</span>
+      <button class="btn-page" id="historyNextBtn" onclick="changeHistoryPage(1)" disabled>
+        หน้าถัดไป <i class='bx bx-chevron-right'></i>
+      </button>
+    </div>
+  </div>
+ 
+
+</div><!-- /.card -->
+
+<!-- Admin link — ดึง URL จริงของหน้า Admin จากเซิร์ฟเวอร์ (Code.gs -> getAdminUrl) -->
+<div class="admin-link-wrap" id="adminLinkWrap">
+  <a href="#" id="adminLink" target="_blank" rel="noopener" title="หน้าผู้ดูแลระบบ"><i class='bx bx-cog'></i></a>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  State
+// ═══════════════════════════════════════════════════════════
+const ALL_SLOTS = ["08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00"];
+const HISTORY_PAGE_SIZE = 5;
+let bookedData         = [];
+let calendar            = null;
+let globalReservations  = [];
+let historyPage         = 1;
+
+// ═══════════════════════════════════════════════════════════
+//  Admin link — ดึง URL จริงจาก server-side (ScriptApp.getService().getUrl())
+//  เพื่อให้ใช้งานได้จริงไม่ว่าจะ deploy ใหม่กี่รอบ ไม่พึ่งพา relative "?page=admin"
+// ═══════════════════════════════════════════════════════════
+(function loadAdminLink() {
+  google.script.run
+    .withSuccessHandler(function(url) {
+      const a = document.getElementById('adminLink');
+      if (url) {
+        a.href = url;
+      } else {
+        a.href = '?page=admin';
+      }
+    })
+    .withFailureHandler(function() {
+      document.getElementById('adminLink').href = '?page=admin';
+    })
+    .getAdminUrl();
+})();
+
+// ═══════════════════════════════════════════════════════════
+//  Tab Switching
+// ═══════════════════════════════════════════════════════════
+function switchTab(id) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById(id === 'booking-tab' ? 'btn-booking' : 'btn-calendar').classList.add('active');
+  if (id === 'calendar-tab') loadCalendarAndHistory();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Format Date Thai
+// ═══════════════════════════════════════════════════════════
+function formatDateTH(dateStr) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-');
+  const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.',
+                  'ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  return `${parseInt(d)} ${months[parseInt(m)-1]} ${parseInt(y)+543}`;
+}
+
+const ROOM_COLORS = {
+  'ห้องประชุมใหญ่ชั้น 4' : '#4f46e5',
+  'ห้องประชุมย่อย ชั้น 3': '#0891b2',
+  'ห้องประชุมย่อย ชั้น 2': '#059669',
+  'พื้นที่กิจกรรมอื่น'   : '#d97706'
+};
+
+// ═══════════════════════════════════════════════════════════
+//  Load Calendar + History
+// ═══════════════════════════════════════════════════════════
+function loadCalendarAndHistory() {
+  google.script.run.withSuccessHandler(function(events) {
+
+    // เรียงรายการจากวันที่/เวลาใหม่สุดไปเก่าสุด สำหรับตารางประวัติ
+    events.sort(function(a, b) {
+      const ka = (a.date || '') + ' ' + (a.start || '');
+      const kb = (b.date || '') + ' ' + (b.start || '');
+      return kb.localeCompare(ka);
+    });
+
+    globalReservations = events;
+    historyPage = 1;
+
+    renderCalendar(events);
+    renderHistoryPage();
+
+  }).getAllReservations();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Render FullCalendar (แสดงทุกรายการ ไม่จำกัดหน้า)
+// ═══════════════════════════════════════════════════════════
+function renderCalendar(events) {
+  const calEvents = events.map(function(ev) {
+    const color  = ROOM_COLORS[ev.room] || '#6366f1';
+    const status = ev.status || 'รอพิจารณา';
+    const evColor = status === 'ปฏิเสธ' ? '#94a3b8'
+                  : status === 'อนุมัติ' ? color
+                  : '#f59e0b';
+    return {
+      title        : ev.room + ' : ' + ev.project,
+      start        : ev.date + 'T' + ev.start,
+      end          : ev.date + 'T' + ev.end,
+      color        : evColor,
+      extendedProps: ev
+    };
+  });
+
+  setTimeout(() => {
+    const el = document.getElementById('calendar');
+    if (calendar) calendar.destroy();
+    calendar = new FullCalendar.Calendar(el, {
+      initialView  : 'dayGridMonth',
+      locale       : 'th',
+      headerToolbar: { left:'prev,next today', center:'title', right:'dayGridMonth,timeGridWeek' },
+      events       : calEvents,
+      eventClick   : function(info) {
+        const p      = info.event.extendedProps;
+        const status = p.status || 'รอพิจารณา';
+        Swal.fire({
+          title: "<i class='bx bx-clipboard'></i> รายละเอียดการจอง",
+          html : `<div style="text-align:left;font-size:15px;line-height:1.9;font-family:'Sarabun',sans-serif">
+                    <b>ห้อง :</b> ${p.room}<br>
+                    <b>เรื่อง :</b> ${p.project}<br>
+                    <b>ผู้จอง :</b> ${p.name} (${p.position})<br>
+                    <b>เวลา :</b> ${p.start} – ${p.end} น.<br>
+                    <b>ผู้เข้าร่วม :</b> ${p.qty} คน<br>
+                    <b>สถานะ :</b> ${status}
+                  </div>`,
+          icon : 'info',
+          confirmButtonColor: '#4f46e5'
+        });
+      }
+    });
+    calendar.render();
+  }, 80);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Render History Table — แสดงทีละหน้า (HISTORY_PAGE_SIZE รายการ/หน้า)
+// ═══════════════════════════════════════════════════════════
+function renderHistoryPage() {
+  const tbody = document.getElementById('history-tbody');
+  tbody.innerHTML = '';
+
+  if (!globalReservations.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:24px">ไม่พบข้อมูลการจองย้อนหลัง</td></tr>';
+    updateHistoryPaginationUI(1, 1);
+    return;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(globalReservations.length / HISTORY_PAGE_SIZE));
+  if (historyPage > totalPages) historyPage = totalPages;
+  if (historyPage < 1) historyPage = 1;
+
+  const startIdx   = (historyPage - 1) * HISTORY_PAGE_SIZE;
+  const pageItems   = globalReservations.slice(startIdx, startIdx + HISTORY_PAGE_SIZE);
+
+  pageItems.forEach(function(ev) {
+    const status = ev.status || 'รอพิจารณา';
+
+    const statusClass = status === 'อนุมัติ' ? 'tag-ok'
+                      : status === 'ปฏิเสธ'   ? 'tag-reject'
+                      : 'tag-wait';
+    const statusLabel = status === 'อนุมัติ' ? "<i class='bx bx-check-circle'></i> อนุมัติ"
+                      : status === 'ปฏิเสธ'   ? "<i class='bx bx-x-circle'></i> ปฏิเสธ"
+                      : "<i class='bx bx-time-five'></i> รอพิจารณา";
+
+    const docCell = status === 'อนุมัติ'
+      ? `<button class="btn-pdf" onclick="downloadPDF(${ev.id})"><i class='bx bx-file'></i> PDF</button>`
+      : `<span style="color:#94a3b8;font-size:.78rem">—</span>`;
+
+    tbody.insertAdjacentHTML('beforeend', `
+      <tr>
+        <td>${formatDateTH(ev.date)}</td>
+        <td><span class="tag-room">${ev.room}</span></td>
+        <td style="white-space:nowrap">${ev.start} – ${ev.end} น.</td>
+        <td>
+          <div style="font-weight:600">${ev.project}</div>
+          <div style="font-size:.8rem;color:#64748b;margin-top:2px">${ev.name} · ${ev.position}</div>
+        </td>
+        <td><span class="tag-status ${statusClass}">${statusLabel}</span></td>
+        <td>${docCell}</td>
+      </tr>`);
+  });
+
+  updateHistoryPaginationUI(historyPage, totalPages);
+}
+
+function updateHistoryPaginationUI(page, totalPages) {
+  document.getElementById('historyPageInfo').textContent = `หน้า ${page} จาก ${totalPages}`;
+  document.getElementById('historyPrevBtn').disabled = page <= 1;
+  document.getElementById('historyNextBtn').disabled = page >= totalPages;
+}
+
+function changeHistoryPage(delta) {
+  historyPage += delta;
+  renderHistoryPage();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Check Available Slots
+// ═══════════════════════════════════════════════════════════
+function checkAvailableSlots() {
+  const room     = document.getElementById('room').value;
+  const date     = document.getElementById('date').value;
+  const startSel = document.getElementById('start_time');
+  const endSel   = document.getElementById('end_time');
+
+  if (!room || !date) return;
+
+  startSel.disabled = true;
+  startSel.innerHTML = '<option value="">กำลังโหลดเวลาว่าง…</option>';
+  endSel.disabled = true;
+  endSel.innerHTML = '<option value="">— เลือกเวลาเริ่มก่อน —</option>';
+
+  google.script.run.withSuccessHandler(function(slots) {
+    bookedData = slots;
+    startSel.innerHTML = '<option value="">— เลือกเวลาเริ่ม —</option>';
+    for (let i = 0; i < ALL_SLOTS.length - 1; i++) {
+      const cur    = ALL_SLOTS[i];
+      const booked = slots.some(s => cur >= s.start && cur < s.end);
+      if (!booked) {
+        startSel.insertAdjacentHTML('beforeend',
+          `<option value="${cur}">${cur} น.</option>`);
+      }
+    }
+    startSel.disabled = false;
+  }).getBookedSlots(room, date);
+}
+
+function updateEndTimeOptions() {
+  const start  = document.getElementById('start_time').value;
+  const endSel = document.getElementById('end_time');
+  endSel.innerHTML = '<option value="">— เลือกสิ้นสุด —</option>';
+  if (!start) { endSel.disabled = true; return; }
+
+  const idx = ALL_SLOTS.indexOf(start);
+  for (let i = idx + 1; i < ALL_SLOTS.length; i++) {
+    const checkEnd = ALL_SLOTS[i];
+    const conflict = bookedData.some(s => start < s.end && checkEnd > s.start);
+    if (conflict) break;
+    endSel.insertAdjacentHTML('beforeend',
+      `<option value="${checkEnd}">${checkEnd} น.</option>`);
+  }
+  endSel.disabled = false;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Signature Canvas
+// ═══════════════════════════════════════════════════════════
+(function initCanvas() {
+  const wrap     = document.getElementById('sigWrap');
+  const canvas   = document.getElementById('sig-canvas');
+  const hint     = document.getElementById('sigHint');
+  const clearBtn = document.getElementById('sig-clearBtn');
+  const ctx      = canvas.getContext('2d');
+  let drawing    = false;
+  let hasDrawn   = false;
+
+  function setCtx() {
+    ctx.lineWidth   = 2.2;
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineJoin    = 'round';
+    ctx.lineCap     = 'round';
+  }
+  function initSize() {
+    canvas.width  = wrap.clientWidth  || 600;
+    canvas.height = wrap.clientHeight || 150;
+    setCtx();
+  }
+  function resize() {
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    canvas.width  = wrap.clientWidth;
+    canvas.height = wrap.clientHeight;
+    ctx.putImageData(img, 0, 0);
+    setCtx();
+  }
+  initSize();
+  window.addEventListener('resize', resize);
+
+  function getPos(e) {
+    const r = canvas.getBoundingClientRect();
+    const sx = canvas.width  / r.width;
+    const sy = canvas.height / r.height;
+    if (e.touches) return {
+      x: (e.touches[0].clientX - r.left) * sx,
+      y: (e.touches[0].clientY - r.top)  * sy
+    };
+    return { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
+  }
+  function startDraw(e) {
+    e.preventDefault(); drawing = true;
+    if (!hasDrawn) { hint.classList.add('hidden'); hasDrawn = true; }
+    const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y);
+  }
+  function draw(e) {
+    if (!drawing) return; e.preventDefault();
+    const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke();
+  }
+  function endDraw(e) {
+    if (!drawing) return; e.preventDefault();
+    drawing = false; ctx.beginPath();
+  }
+
+  canvas.addEventListener('mousedown',  startDraw);
+  canvas.addEventListener('mousemove',  draw);
+  canvas.addEventListener('mouseup',    endDraw);
+  canvas.addEventListener('mouseleave', endDraw);
+  canvas.addEventListener('touchstart', startDraw, { passive: false });
+  canvas.addEventListener('touchmove',  draw,      { passive: false });
+  canvas.addEventListener('touchend',   endDraw,   { passive: false });
+
+  clearBtn.addEventListener('click', () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    hasDrawn = false;
+    hint.classList.remove('hidden');
+  });
+
+  window._sigCanvas = canvas;
+})();
+
+// ═══════════════════════════════════════════════════════════
+//  Form Submit
+// ═══════════════════════════════════════════════════════════
+function handleFormSubmit(e) {
+  e.preventDefault();
+  Swal.fire({
+    title: 'กำลังบันทึกข้อมูล…', text: 'กรุณารอสักครู่',
+    allowOutsideClick: false, didOpen: () => Swal.showLoading()
+  });
+
+  const form     = document.getElementById('bookingForm');
+  const formData = {};
+  new FormData(form).forEach((v, k) => formData[k] = v);
+  formData.signature = window._sigCanvas.toDataURL('image/png');
+
+  google.script.run.withSuccessHandler(function(res) {
+    if (res.success) {
+      Swal.fire({
+        icon: 'success', title: 'ส่งคำขอสำเร็จ!', text: res.message,
+        confirmButtonColor: '#4f46e5'
+      }).then(() => {
+        form.reset();
+        const c = window._sigCanvas;
+        c.getContext('2d').clearRect(0, 0, c.width, c.height);
+        document.getElementById('sigHint').classList.remove('hidden');
+        document.getElementById('start_time').disabled = true;
+        document.getElementById('end_time').disabled   = true;
+      });
+    } else {
+      Swal.fire({ icon:'error', title:'เกิดข้อผิดพลาด', text: res.message, confirmButtonColor:'#ef4444' });
+    }
+  }).saveReservation(formData);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Download PDF
+//  หมายเหตุ: ลายเซ็นถูกดึงมาแปลงเป็น base64 data URI จากฝั่งเซิร์ฟเวอร์
+//  (Code.gs -> getSignatureBase64) ก่อนวาดลง PDF เสมอ เพื่อไม่ให้ติดปัญหา
+//  CORS ของลิงก์ Google Drive ที่ทำให้รูปลายเซ็นหายไปตอนสร้าง PDF
+// ═══════════════════════════════════════════════════════════
+function downloadPDF(id) {
+  const data = globalReservations.find(x => x.id === id);
+  if (!data) return;
+
+  Swal.fire({
+    title: 'กำลังสร้างเอกสาร PDF…', text: 'กรุณารอสักครู่',
+    allowOutsideClick: false, didOpen: () => Swal.showLoading()
+  });
+
+  if (data.signatureUrl) {
+    google.script.run
+      .withSuccessHandler(function(base64img) {
+        buildAndSavePDF(data, base64img || '');
+      })
+      .withFailureHandler(function() {
+        buildAndSavePDF(data, '');
+      })
+      .getSignatureBase64(data.signatureUrl);
+  } else {
+    buildAndSavePDF(data, '');
+  }
+}
+
+function buildAndSavePDF(data, sigBase64) {
+  const isBreakfast = data.equipment.includes('อาหารว่างเช้า');
+  const isLunch     = data.equipment.includes('อาหารกลางวัน');
+  const isAfternoon = data.equipment.includes('อาหารว่างบ่าย');
+  let breakfastQty = '0', lunchQty = '0', afternoonQty = '0';
+  if (isBreakfast) { const m = data.equipment.match(/อาหารว่างเช้า:\s*(\d+)/);  if (m) breakfastQty = m[1]; }
+  if (isLunch)     { const m = data.equipment.match(/อาหารกลางวัน:\s*(\d+)/);   if (m) lunchQty     = m[1]; }
+  if (isAfternoon) { const m = data.equipment.match(/อาหารว่างบ่าย:\s*(\d+)/);  if (m) afternoonQty = m[1]; }
+
+  const dateDisplay = formatDateTH(data.date);
+  const ck = v => v ? '✓' : '☐';
+  const sigHTML = sigBase64
+    ? `<img src="${sigBase64}" style="max-height:90px;max-width:230px;object-fit:contain;">`
+    : '';
+
+  const A4_W = 794;
+  const A4_H = 1123;
+
+  const portal = document.createElement('div');
+  portal.style.cssText = `position:absolute;top:0;left:-${A4_W + 100}px;width:${A4_W}px;overflow:hidden;`;
+  document.body.appendChild(portal);
+
+  const wrap = document.createElement('div');
+  wrap.style.cssText = `width:${A4_W}px;min-height:${A4_H}px;box-sizing:border-box;padding:36px 52px 28px;background:#fff;color:#111;font-family:Sarabun,sans-serif;font-size:13px;line-height:1.7;`;
+
+  wrap.innerHTML = `
+<div id="pdfroot">
+<style>
+  #pdfroot{font-family:Sarabun,sans-serif;color:#111;font-size:13px;}
+  #pdfroot .hrdbl{border:none;border-top:3px double #111;margin:0 0 10px;}
+  #pdfroot .hrsl {border:none;border-top:1.5px solid #333;margin:6px 0 10px;}
+  #pdfroot .hrdsh{border:none;border-top:1.5px dashed #888;margin:10px 0 8px;}
+  #pdfroot .sh   {font-weight:700;font-size:13px;margin:8px 0 4px;}
+  #pdfroot .g2   {display:grid;grid-template-columns:1fr 1fr;gap:2px 14px;margin-bottom:8px;}
+  #pdfroot .cl   {font-size:12.5px;}
+  #pdfroot .er   {display:flex;align-items:center;gap:7px;font-size:12.5px;margin-bottom:2px;}
+  #pdfroot .sg   {display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;}
+  #pdfroot .sb   {text-align:center;font-size:12px;}
+  #pdfroot .sl   {border-bottom:1px solid #333;width:80%;margin:2px auto;}
+  #pdfroot .si   {height:90px;display:flex;align-items:center;justify-content:center;}
+  #pdfroot .ul   {border-bottom:1px solid #555;display:inline-block;min-width:110px;padding:0 3px;}
+  #pdfroot ol    {padding-left:16px;font-size:11.5px;line-height:1.6;color:#333;margin:0;}
+  #pdfroot ol li {margin-bottom:2px;}
+</style>
+<hr class="hrdbl">
+<p style="font-size:18px;font-weight:700;text-align:center;margin:0 0 2px;">แบบฟอร์มขอใช้พื้นที่ / ห้องประชุม</p>
+<p style="text-align:center;font-size:11.5px;color:#555;margin:0 0 8px;">สำนักงานสาขาหลักสูตร วท.บ.สุขภาพดิจิทัล &nbsp;|&nbsp; เลขที่: ${data.date.replace(/-/g,'')}-${String(data.id).padStart(4,'0')}</p>
+<hr class="hrsl">
+<div class="g2">
+  <div class="cl"><b>ชื่อผู้ขอใช้ :</b> ${data.name}</div>
+  <div class="cl"><b>หน่วยงาน :</b> ${data.position}</div>
+  <div class="cl"><b>ตำแหน่ง :</b> ${data.position}</div>
+  <div class="cl"><b>เบอร์ติดต่อ :</b> ${data.phone}</div>
+  <div class="cl" style="grid-column:1/-1"><b>วันที่ขอใช้ :</b> ${dateDisplay} &nbsp;&nbsp; <b>เวลา :</b> ${data.start} – ${data.end} น. &nbsp;&nbsp; <b>จำนวนผู้เข้าร่วม :</b> ${data.qty} คน</div>
+</div>
+<div class="sh">พื้นที่ที่ขอใช้ :</div>
+<div style="padding-left:6px;margin-bottom:6px;font-size:12.5px;">
+  ${ck(data.room !== 'พื้นที่กิจกรรมอื่น')} ห้องประชุม <span class="ul">${data.room !== 'พื้นที่กิจกรรมอื่น' ? data.room : ''}</span>
+  &nbsp;&nbsp;
+  ${ck(data.room === 'พื้นที่กิจกรรมอื่น')} พื้นที่บริเวณ <span class="ul">${data.room === 'พื้นที่กิจกรรมอื่น' ? 'พื้นที่กิจกรรมอื่น' : ''}</span>
+</div>
+<div class="sh">เรื่อง / กิจกรรม :</div>
+<div style="padding-left:6px;margin-bottom:6px;font-size:12.5px;border-bottom:1px solid #bbb;padding-bottom:2px;">${data.project}</div>
+<div class="sh">อาหาร / อุปกรณ์ที่ขอใช้ :</div>
+<div style="padding-left:6px;">
+  <div class="er"><span style="width:16px;text-align:center">${ck(isBreakfast)}</span> อาหารว่างเช้า จำนวน <b>${breakfastQty}</b> ชุด</div>
+  <div class="er"><span style="width:16px;text-align:center">${ck(isLunch)}</span> อาหารกลางวัน จำนวน <b>${lunchQty}</b> ชุด</div>
+  <div class="er"><span style="width:16px;text-align:center">${ck(isAfternoon)}</span> อาหารว่างบ่าย จำนวน <b>${afternoonQty}</b> ชุด</div>
+  <div class="er"><span style="width:16px;text-align:center">☐</span> อื่นๆ ระบุ ..........................................................................................</div>
+</div>
+<div class="sg">
+  <div class="sb">
+    <div class="si">${sigHTML}</div>
+    <div class="sl"></div>
+    <div>ลงชื่อ ผู้ขอใช้</div>
+    <div>( ${data.name} )</div>
+    <div style="font-size:10.5px;color:#555;margin-top:2px;">วันที่ ${dateDisplay}</div>
+  </div>
+  <div class="sb">
+    <div class="si"></div>
+    <div class="sl"></div>
+    <div>ลงชื่อ ผู้จัดการสาขา</div>
+    <div>( .......................................... )</div>
+    <div style="font-size:10.5px;color:#555;margin-top:2px;">วันที่ ......... / ......... / .........</div>
+  </div>
+</div>
+<hr class="hrdsh">
+<div style="font-weight:700;font-size:12.5px;margin-bottom:3px;">หลักเกณฑ์การขอใช้พื้นที่ :</div>
+<ol>
+  <li>กรณีขอใช้ห้องประชุม กรุณาส่งแบบฟอร์มก่อนการประชุมล่วงหน้าอย่างน้อย <b>3 วัน</b></li>
+  <li>กรณีขอยกเลิกการใช้พื้นที่ จะต้องแจ้งยกเลิกล่วงหน้าอย่างน้อย <b>1 วัน</b></li>
+  <li>หลังเลิกประชุมให้ปิดระบบแสงสว่าง เครื่องปรับอากาศ และปิดประตูทางเข้า-ออกทุกจุดให้เรียบร้อย</li>
+  <li>แจ้งผู้ดูแล / ผู้บริหารสาขาเมื่อใช้ห้องประชุมเสร็จทุกครั้ง เพื่อตรวจสอบความเรียบร้อยของอุปกรณ์และบริเวณโดยรอบ หากมีความเสียหายเกิดขึ้นซึ่งมิได้เกิดจากการเสื่อมสภาพตามอายุการใช้งาน ผู้ขอใช้ต้องรับผิดชอบทั้งหมด</li>
+</ol>
+</div>`;
+
+  portal.appendChild(wrap);
+
+  document.fonts.ready.then(() => {
+    if (wrap.scrollHeight > A4_H) {
+      const ratio = (A4_H / wrap.scrollHeight) * 0.97;
+      wrap.style.fontSize = (13 * ratio).toFixed(2) + 'px';
+      wrap.style.padding  = `${Math.floor(36*ratio)}px ${Math.floor(52*ratio)}px ${Math.floor(28*ratio)}px`;
+    }
+
+    const rect = wrap.getBoundingClientRect();
+    html2canvas(wrap, {
+      scale      : 2,
+      useCORS    : true,
+      allowTaint : true,
+      logging    : false,
+      width      : A4_W,
+      height     : A4_H,
+      windowWidth: A4_W,
+      scrollX    : -rect.left,
+      scrollY    : -rect.top - window.scrollY
+    }).then(canvas => {
+      portal.remove();
+      const imgData = canvas.toDataURL('image/jpeg', 0.97);
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ unit:'mm', format:'a4', orientation:'portrait' });
+      pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+      pdf.save(`คำขอใช้ห้องประชุม_${data.date}_${data.name}.pdf`);
+      Swal.close();
+    }).catch(err => {
+      portal.remove();
+      Swal.fire({ icon:'error', title:'สร้าง PDF ไม่สำเร็จ',
+        text: err && err.message ? err.message : String(err),
+        confirmButtonColor:'#ef4444' });
+    });
+  });
+}
+</script>
+</body>
+</html>
