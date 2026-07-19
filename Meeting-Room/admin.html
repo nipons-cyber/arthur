@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — ระบบจองห้องประชุม</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Kanit:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+  <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html{font-size:16px;}
+    body{
+      font-family:'Sarabun',sans-serif;
+      min-height:100vh;
+      background:
+        radial-gradient(circle at 10% 0%, rgba(199,210,254,.55) 0%, rgba(199,210,254,0) 45%),
+        radial-gradient(circle at 90% 10%, rgba(196,181,253,.5) 0%, rgba(196,181,253,0) 40%),
+        linear-gradient(160deg,#eef2ff 0%,#f8fafc 45%,#eef9f3 100%);
+      display:flex;flex-direction:column;align-items:center;
+      padding:32px 16px 56px;
+    }
+
+    /* ── Login ── */
+    .login-box{
+      background:#ffffff;border:1px solid #e5e7eb;border-radius:22px;
+      padding:44px 40px;width:100%;max-width:400px;margin-top:64px;text-align:center;
+      box-shadow:0 24px 60px rgba(79,70,229,.14);
+      position:relative;overflow:hidden;
+    }
+    .login-box::before{
+      content:'';position:absolute;top:-60px;right:-60px;width:160px;height:160px;
+      background:linear-gradient(135deg,#818cf8,#a78bfa);border-radius:50%;opacity:.18;
+    }
+    .login-icon{
+      width:64px;height:64px;border-radius:18px;margin:0 auto 18px;
+      background:linear-gradient(135deg,#4f46e5,#7c3aed);
+      display:flex;align-items:center;justify-content:center;font-size:1.8rem;
+      box-shadow:0 10px 24px rgba(79,70,229,.35);position:relative;
+    }
+    .login-box h2{font-family:'Kanit',sans-serif;color:#1e293b;font-size:1.5rem;font-weight:700;margin-bottom:6px;position:relative;}
+    .login-box p{color:#94a3b8;font-size:.88rem;margin-bottom:26px;position:relative;}
+    .login-box input{
+      width:100%;padding:13px 16px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;
+      color:#1e293b;font-family:'Sarabun',sans-serif;font-size:.95rem;outline:none;margin-bottom:16px;
+      transition:border-color .2s,box-shadow .2s;position:relative;
+    }
+    .login-box input:focus{border-color:#4f46e5;box-shadow:0 0 0 3px rgba(79,70,229,.12);background:#fff;}
+    .btn-login{
+      width:100%;padding:13px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;
+      border-radius:12px;font-family:'Sarabun',sans-serif;font-size:1rem;font-weight:600;cursor:pointer;
+      box-shadow:0 8px 20px rgba(79,70,229,.3);transition:transform .15s,box-shadow .2s;position:relative;
+    }
+    .btn-login:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(79,70,229,.4);}
+    .btn-login:active{transform:translateY(0);}
+
+    /* ── Dashboard ── */
+    .dashboard{width:100%;max-width:1140px;display:none;}
+    .topbar{
+      display:flex;align-items:center;justify-content:space-between;margin-bottom:26px;flex-wrap:wrap;gap:14px;
+    }
+    .topbar-left{display:flex;align-items:center;gap:14px;}
+    .topbar-icon{
+      width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#4f46e5,#7c3aed);
+      display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:#fff;
+      box-shadow:0 8px 18px rgba(79,70,229,.3);
+    }
+    .topbar h1{font-family:'Kanit',sans-serif;color:#1e293b;font-size:1.5rem;font-weight:700;}
+    .topbar .sub{color:#94a3b8;font-size:.82rem;margin-top:1px;}
+    .badge-count{
+      background:linear-gradient(135deg,#f59e0b,#f97316);color:#fff;font-size:.8rem;
+      padding:5px 14px;border-radius:100px;font-weight:600;box-shadow:0 4px 12px rgba(249,115,22,.3);
+    }
+    .btn-logout{
+      background:#fff;color:#64748b;border:1.5px solid #e2e8f0;padding:9px 18px;border-radius:10px;
+      font-family:'Sarabun',sans-serif;cursor:pointer;font-size:.85rem;font-weight:500;transition:all .2s;
+    }
+    .btn-logout:hover{background:#fef2f2;color:#dc2626;border-color:#fecaca;}
+
+    /* Filter tabs */
+    .filter-tabs{display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap;}
+    .ftab{
+      padding:9px 20px;border-radius:100px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;
+      font-family:'Sarabun',sans-serif;font-size:.86rem;font-weight:500;cursor:pointer;transition:all .2s;
+    }
+    .ftab:hover{border-color:#a5b4fc;color:#4f46e5;}
+    .ftab.active{background:linear-gradient(135deg,#4f46e5,#7c3aed);border-color:transparent;color:#fff;box-shadow:0 6px 16px rgba(79,70,229,.3);}
+
+    /* Cards */
+    .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px;}
+    .card{
+      background:#fff;border:1px solid #eef2f7;border-radius:16px;padding:22px;
+      box-shadow:0 4px 16px rgba(15,23,42,.05);transition:box-shadow .2s,transform .2s;
+      border-left:4px solid #cbd5e1;
+    }
+    .card.s-wait  {border-left-color:#f59e0b;}
+    .card.s-ok    {border-left-color:#22c55e;}
+    .card.s-reject{border-left-color:#ef4444;}
+    .card:hover{box-shadow:0 10px 28px rgba(79,70,229,.12);transform:translateY(-2px);}
+    .card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:8px;}
+    .card-title{font-size:1.02rem;font-weight:700;color:#1e293b;line-height:1.4;font-family:'Kanit',sans-serif;}
+    .status-badge{flex-shrink:0;font-size:.72rem;font-weight:700;padding:4px 12px;border-radius:100px;white-space:nowrap;}
+    .status-wait  {background:#fef3c7;color:#92400e;}
+    .status-ok    {background:#dcfce7;color:#15803d;}
+    .status-reject{background:#fee2e2;color:#b91c1c;}
+    .card-info{font-size:.85rem;color:#64748b;line-height:2;}
+    .card-info b{color:#334155;font-weight:600;}
+    .card-info .room-tag{
+      display:inline-block;background:#ede9fe;color:#5b21b6;font-size:.78rem;font-weight:600;
+      padding:2px 10px;border-radius:100px;
+    }
+    .card-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;}
+    .btn-approve{
+      flex:1;padding:10px;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border:none;
+      border-radius:10px;font-family:'Sarabun',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;
+      transition:opacity .2s,transform .15s;box-shadow:0 4px 12px rgba(34,197,94,.3);
+      display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    }
+    .btn-approve:hover{opacity:.92;transform:translateY(-1px);}
+    .btn-reject{
+      flex:1;padding:10px;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border:none;
+      border-radius:10px;font-family:'Sarabun',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;
+      transition:opacity .2s,transform .15s;box-shadow:0 4px 12px rgba(239,68,68,.3);
+      display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    }
+    .btn-reject:hover{opacity:.92;transform:translateY(-1px);}
+    .btn-sig{
+      padding:10px 16px;background:#eef2ff;color:#4338ca;border:1.5px solid #c7d2fe;border-radius:10px;
+      font-family:'Sarabun',sans-serif;font-size:.85rem;font-weight:500;cursor:pointer;transition:all .2s;
+      display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    }
+    .btn-sig:hover{background:#e0e7ff;}
+    .decided-tag{
+      display:flex;align-items:center;gap:6px;font-size:.85rem;font-weight:600;padding:9px 0;
+    }
+    .decided-tag.ok{color:#15803d;}
+    .decided-tag.reject{color:#b91c1c;}
+    .empty{
+      text-align:center;color:#94a3b8;padding:60px 20px;grid-column:1/-1;font-size:.95rem;
+      background:#fff;border-radius:16px;border:1.5px dashed #e2e8f0;
+    }
+
+    @media(max-width:640px){
+      .login-box{padding:34px 26px;margin-top:30px;}
+      .topbar{flex-direction:column;align-items:flex-start;}
+      .cards{grid-template-columns:1fr;}
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Login ── -->
+<div class="login-box" id="loginBox">
+  <div class="login-icon"><i class='bx bx-lock-alt'></i></div>
+  <h2>Admin Panel</h2>
+  <p>ระบบจองห้องประชุม นครสวรรค์</p>
+  <input type="password" id="pwInput" placeholder="รหัสผ่าน Admin" onkeydown="if(event.key==='Enter')doLogin()">
+  <button class="btn-login" onclick="doLogin()">เข้าสู่ระบบ</button>
+</div>
+
+<!-- ── Dashboard ── -->
+<div class="dashboard" id="dashboard">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-icon"><i class='bx bx-clipboard'></i></div>
+      <div>
+        <h1>Admin Panel</h1>
+        <div class="sub">ระบบจองห้องประชุม นครสวรรค์</div>
+      </div>
+      <span class="badge-count" id="pendingCount">0 รอพิจารณา</span>
+    </div>
+    <button class="btn-logout" onclick="doLogout()">ออกจากระบบ</button>
+  </div>
+
+  <div class="filter-tabs">
+    <button class="ftab active" onclick="filterCards('all',this)">ทั้งหมด</button>
+    <button class="ftab" onclick="filterCards('รอพิจารณา',this)"><i class='bx bx-time-five'></i> รอพิจารณา</button>
+    <button class="ftab" onclick="filterCards('อนุมัติ',this)"><i class='bx bx-check-circle'></i> อนุมัติแล้ว</button>
+    <button class="ftab" onclick="filterCards('ปฏิเสธ',this)"><i class='bx bx-x-circle'></i> ปฏิเสธ</button>
+  </div>
+
+  <div class="cards" id="cardsContainer">
+    <div class="empty">กำลังโหลด…</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+let adminPW = '';
+let allData = [];
+
+function doLogin() {
+  const pw = document.getElementById('pwInput').value.trim();
+  if (!pw) return;
+  Swal.fire({ title:'กำลังตรวจสอบ…', allowOutsideClick:false, didOpen:()=>Swal.showLoading() });
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (res && res.error) {
+        Swal.fire({ icon:'error', title:'รหัสผ่านไม่ถูกต้อง', confirmButtonColor:'#4f46e5' });
+      } else {
+        adminPW = pw;
+        allData = res;
+        Swal.close();
+        document.getElementById('loginBox').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        renderCards(allData);
+      }
+    })
+    .withFailureHandler(function(err) {
+      Swal.fire({ icon:'error', title:'เกิดข้อผิดพลาด', text: String(err), confirmButtonColor:'#4f46e5' });
+    })
+    .getAllReservationsAdmin(pw);
+}
+
+function doLogout() {
+  adminPW = '';
+  allData = [];
+  // Google Apps Script render HTML ใน iframe บน domain googleusercontent.com
+  // ดังนั้น window.location.href จะได้ URL ของ iframe ไม่ใช่ URL ของ Web App จริง
+  // วิธีที่ถูกต้องคือดึง URL จริงจาก ScriptApp.getService().getUrl() ฝั่ง server
+  google.script.run
+    .withSuccessHandler(function(adminUrl) {
+      var homeUrl = adminUrl ? adminUrl.split('?')[0] : null;
+      if (homeUrl) {
+        window.open(homeUrl, '_top');
+      } else {
+        document.getElementById('dashboard').style.display = 'none';
+        document.getElementById('loginBox').style.display  = 'block';
+        document.getElementById('pwInput').value = '';
+      }
+    })
+    .withFailureHandler(function() {
+      document.getElementById('dashboard').style.display = 'none';
+      document.getElementById('loginBox').style.display  = 'block';
+      document.getElementById('pwInput').value = '';
+    })
+    .getAdminUrl();
+}
+
+function renderCards(data) {
+  const container = document.getElementById('cardsContainer');
+  const pending = data.filter(d => d.status === 'รอพิจารณา').length;
+  document.getElementById('pendingCount').textContent = pending + ' รอพิจารณา';
+
+  if (!data.length) {
+    container.innerHTML = '<div class="empty">ไม่พบข้อมูล</div>';
+    return;
+  }
+
+  container.innerHTML = data.map(d => {
+    const statusClass = d.status === 'อนุมัติ' ? 'status-ok'
+                      : d.status === 'ปฏิเสธ'   ? 'status-reject'
+                      : 'status-wait';
+    const cardClass = d.status === 'อนุมัติ' ? 's-ok'
+                     : d.status === 'ปฏิเสธ' ? 's-reject'
+                     : 's-wait';
+    const actionBtns = d.status === 'รอพิจารณา'
+      ? `<button class="btn-approve" onclick="approve(${d.id})"><i class='bx bx-check-circle'></i> อนุมัติ</button>
+         <button class="btn-reject"  onclick="reject(${d.id})"><i class='bx bx-x-circle'></i> ปฏิเสธ</button>`
+      : d.status === 'อนุมัติ'
+        ? `<div class="decided-tag ok"><i class='bx bx-check-circle'></i> อนุมัติแล้ว</div>`
+        : `<div class="decided-tag reject"><i class='bx bx-x-circle'></i> ปฏิเสธแล้ว</div>`;
+    const sigBtn = d.signatureUrl
+      ? `<button class="btn-sig" onclick="window.open('${d.signatureUrl}','_blank')"><i class='bx bx-pen'></i> ลายเซ็น</button>`
+      : '';
+
+    return `<div class="card ${cardClass}" data-status="${d.status}">
+      <div class="card-top">
+        <div class="card-title">${d.project}</div>
+        <span class="status-badge ${statusClass}">${d.status}</span>
+      </div>
+      <div class="card-info">
+        <span class="room-tag">${d.room}</span><br>
+        <b>วันที่ :</b> ${d.date} &nbsp; <b>เวลา :</b> ${d.start} – ${d.end} น.<br>
+        <b>ผู้จอง :</b> ${d.name} (${d.position})<br>
+        <b>โทร :</b> ${d.phone} &nbsp; <b>อีเมล :</b> ${d.email || '-'}<br>
+        <b>ผู้เข้าร่วม :</b> ${d.qty} คน<br>
+        ${d.equipment ? '<b>อุปกรณ์ :</b> ' + d.equipment + '<br>' : ''}
+      </div>
+      <div class="card-actions">
+        ${actionBtns}
+        ${sigBtn}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterCards(status, btn) {
+  document.querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const filtered = status === 'all' ? allData : allData.filter(d => d.status === status);
+  renderCards(filtered);
+}
+
+function approve(id) {
+  Swal.fire({
+    title: 'ยืนยันการอนุมัติ?',
+    text : 'ระบบจะส่งอีเมลแจ้งผู้จองทันที',
+    icon : 'question',
+    showCancelButton: true,
+    confirmButtonText: 'อนุมัติ',
+    cancelButtonText : 'ยกเลิก',
+    confirmButtonColor: '#16a34a',
+    cancelButtonColor: '#94a3b8'
+  }).then(r => {
+    if (!r.isConfirmed) return;
+    Swal.fire({ title:'กำลังดำเนินการ…', allowOutsideClick:false, didOpen:()=>Swal.showLoading() });
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res.success) {
+          allData.find(d => d.id === id).status = 'อนุมัติ';
+          renderCards(allData);
+          Swal.fire({ icon:'success', title:'อนุมัติแล้ว!', text: res.message, confirmButtonColor:'#16a34a' });
+        } else {
+          Swal.fire({ icon:'error', title:'ผิดพลาด', text: res.message, confirmButtonColor:'#4f46e5' });
+        }
+      })
+      .approveReservation(adminPW, id);
+  });
+}
+
+function reject(id) {
+  Swal.fire({
+    title: 'ระบุเหตุผลการปฏิเสธ',
+    input: 'textarea',
+    inputPlaceholder: 'เหตุผล… (ถ้ามี)',
+    showCancelButton: true,
+    confirmButtonText: 'ยืนยันปฏิเสธ',
+    cancelButtonText : 'ยกเลิก',
+    confirmButtonColor: '#dc2626',
+    cancelButtonColor: '#94a3b8'
+  }).then(r => {
+    if (!r.isConfirmed) return;
+    Swal.fire({ title:'กำลังดำเนินการ…', allowOutsideClick:false, didOpen:()=>Swal.showLoading() });
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res.success) {
+          allData.find(d => d.id === id).status = 'ปฏิเสธ';
+          renderCards(allData);
+          Swal.fire({ icon:'info', title:'บันทึกการปฏิเสธแล้ว', text: res.message, confirmButtonColor:'#4f46e5' });
+        } else {
+          Swal.fire({ icon:'error', title:'ผิดพลาด', text: res.message, confirmButtonColor:'#4f46e5' });
+        }
+      })
+      .rejectReservation(adminPW, id, r.value);
+  });
+}
+</script>
+</body>
+</html>
