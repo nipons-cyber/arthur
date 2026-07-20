@@ -442,22 +442,30 @@ const ROOM_COLORS = {
 //  Load Calendar + History
 // ═══════════════════════════════════════════════════════════
 function loadCalendarAndHistory() {
-  google.script.run.withSuccessHandler(function(events) {
+  const tbody = document.getElementById('history-tbody');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:24px">กำลังโหลดข้อมูล…</td></tr>';
 
-    // เรียงรายการจากวันที่/เวลาใหม่สุดไปเก่าสุด สำหรับตารางประวัติ
-    events.sort(function(a, b) {
-      const ka = (a.date || '') + ' ' + (a.start || '');
-      const kb = (b.date || '') + ' ' + (b.start || '');
-      return kb.localeCompare(ka);
-    });
+  google.script.run
+    .withSuccessHandler(function(events) {
 
-    globalReservations = events;
-    historyPage = 1;
+      // เรียงรายการจากวันที่/เวลาใหม่สุดไปเก่าสุด สำหรับตารางประวัติ
+      events.sort(function(a, b) {
+        const ka = (a.date || '') + ' ' + (a.start || '');
+        const kb = (b.date || '') + ' ' + (b.start || '');
+        return kb.localeCompare(ka);
+      });
 
-    renderCalendar(events);
-    renderHistoryPage();
+      globalReservations = events;
+      historyPage = 1;
 
-  }).getAllReservations();
+      renderCalendar(events);
+      renderHistoryPage();
+    })
+    .withFailureHandler(function(err) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#ef4444;padding:24px">โหลดข้อมูลไม่สำเร็จ: '
+        + ((err && err.message) ? err.message : String(err)) + '</td></tr>';
+    })
+    .getAllReservations();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -587,19 +595,30 @@ function checkAvailableSlots() {
   endSel.disabled = true;
   endSel.innerHTML = '<option value="">— เลือกเวลาเริ่มก่อน —</option>';
 
-  google.script.run.withSuccessHandler(function(slots) {
-    bookedData = slots;
-    startSel.innerHTML = '<option value="">— เลือกเวลาเริ่ม —</option>';
-    for (let i = 0; i < ALL_SLOTS.length - 1; i++) {
-      const cur    = ALL_SLOTS[i];
-      const booked = slots.some(s => cur >= s.start && cur < s.end);
-      if (!booked) {
-        startSel.insertAdjacentHTML('beforeend',
-          `<option value="${cur}">${cur} น.</option>`);
+  google.script.run
+    .withSuccessHandler(function(slots) {
+      bookedData = slots;
+      startSel.innerHTML = '<option value="">— เลือกเวลาเริ่ม —</option>';
+      for (let i = 0; i < ALL_SLOTS.length - 1; i++) {
+        const cur    = ALL_SLOTS[i];
+        const booked = slots.some(s => cur >= s.start && cur < s.end);
+        if (!booked) {
+          startSel.insertAdjacentHTML('beforeend',
+            `<option value="${cur}">${cur} น.</option>`);
+        }
       }
-    }
-    startSel.disabled = false;
-  }).getBookedSlots(room, date);
+      startSel.disabled = false;
+    })
+    .withFailureHandler(function(err) {
+      startSel.innerHTML = '<option value="">— โหลดเวลาว่างไม่สำเร็จ —</option>';
+      startSel.disabled = true;
+      Swal.fire({
+        icon: 'error', title: 'โหลดเวลาว่างไม่สำเร็จ',
+        text: (err && err.message) ? err.message : String(err),
+        confirmButtonColor: '#ef4444'
+      });
+    })
+    .getBookedSlots(room, date);
 }
 
 function updateEndTimeOptions() {
