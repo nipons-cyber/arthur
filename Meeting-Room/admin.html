@@ -99,6 +99,7 @@
     .card.s-wait  {border-left-color:#f59e0b;}
     .card.s-ok    {border-left-color:#22c55e;}
     .card.s-reject{border-left-color:#ef4444;}
+    .card.s-cancel{border-left-color:#64748b;}
     .card:hover{box-shadow:0 10px 28px rgba(79,70,229,.12);transform:translateY(-2px);}
     .card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:8px;}
     .card-title{font-size:1.02rem;font-weight:700;color:#1e293b;line-height:1.4;font-family:'Kanit',sans-serif;}
@@ -106,11 +107,16 @@
     .status-wait  {background:#fef3c7;color:#92400e;}
     .status-ok    {background:#dcfce7;color:#15803d;}
     .status-reject{background:#fee2e2;color:#b91c1c;}
+    .status-cancel{background:#e2e8f0;color:#334155;}
     .card-info{font-size:.85rem;color:#64748b;line-height:2;}
     .card-info b{color:#334155;font-weight:600;}
     .card-info .room-tag{
       display:inline-block;background:#ede9fe;color:#5b21b6;font-size:.78rem;font-weight:600;
       padding:2px 10px;border-radius:100px;
+    }
+    .card-info .repeat-tag{
+      display:inline-block;background:#fef9c3;color:#854d0e;font-size:.72rem;font-weight:600;
+      padding:2px 10px;border-radius:100px;margin-left:6px;
     }
     .card-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;}
     .btn-approve{
@@ -133,11 +139,24 @@
       display:inline-flex;align-items:center;justify-content:center;gap:6px;
     }
     .btn-sig:hover{background:#e0e7ff;}
+    .btn-cancel{
+      padding:10px 16px;background:#f1f5f9;color:#475569;border:1.5px solid #cbd5e1;border-radius:10px;
+      font-family:'Sarabun',sans-serif;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .2s;
+      display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    }
+    .btn-cancel:hover{background:#e2e8f0;border-color:#94a3b8;}
+    .btn-cancel-group{
+      padding:10px 16px;background:#fff7ed;color:#9a3412;border:1.5px solid #fed7aa;border-radius:10px;
+      font-family:'Sarabun',sans-serif;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .2s;
+      display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    }
+    .btn-cancel-group:hover{background:#ffedd5;border-color:#fb923c;}
     .decided-tag{
       display:flex;align-items:center;gap:6px;font-size:.85rem;font-weight:600;padding:9px 0;
     }
     .decided-tag.ok{color:#15803d;}
     .decided-tag.reject{color:#b91c1c;}
+    .decided-tag.cancel{color:#475569;}
     .empty{
       text-align:center;color:#94a3b8;padding:60px 20px;grid-column:1/-1;font-size:.95rem;
       background:#fff;border-radius:16px;border:1.5px dashed #e2e8f0;
@@ -180,6 +199,7 @@
     <button class="ftab" onclick="filterCards('รอพิจารณา',this)"><i class='bx bx-time-five'></i> รอพิจารณา</button>
     <button class="ftab" onclick="filterCards('อนุมัติ',this)"><i class='bx bx-check-circle'></i> อนุมัติแล้ว</button>
     <button class="ftab" onclick="filterCards('ปฏิเสธ',this)"><i class='bx bx-x-circle'></i> ปฏิเสธ</button>
+    <button class="ftab" onclick="filterCards('ยกเลิก',this)"><i class='bx bx-block'></i> ยกเลิก</button>
   </div>
 
   <div class="cards" id="cardsContainer">
@@ -253,23 +273,41 @@ function renderCards(data) {
   container.innerHTML = data.map(d => {
     const statusClass = d.status === 'อนุมัติ' ? 'status-ok'
                       : d.status === 'ปฏิเสธ'   ? 'status-reject'
+                      : d.status === 'ยกเลิก'   ? 'status-cancel'
                       : 'status-wait';
     const cardClass = d.status === 'อนุมัติ' ? 's-ok'
                      : d.status === 'ปฏิเสธ' ? 's-reject'
+                     : d.status === 'ยกเลิก' ? 's-cancel'
                      : 's-wait';
-    const actionBtns = d.status === 'รอพิจารณา'
-      ? `<button class="btn-approve" onclick="approve(${d.id})"><i class='bx bx-check-circle'></i> อนุมัติ</button>
-         <button class="btn-reject"  onclick="reject(${d.id})"><i class='bx bx-x-circle'></i> ปฏิเสธ</button>`
-      : d.status === 'อนุมัติ'
-        ? `<div class="decided-tag ok"><i class='bx bx-check-circle'></i> อนุมัติแล้ว</div>`
-        : `<div class="decided-tag reject"><i class='bx bx-x-circle'></i> ปฏิเสธแล้ว</div>`;
+
+    const groupCount = d.repeatGroupId
+      ? allData.filter(x => x.repeatGroupId === d.repeatGroupId && x.status !== 'ยกเลิก' && x.status !== 'ปฏิเสธ').length
+      : 0;
+    const repeatTag = d.repeatGroupId ? `<span class="repeat-tag"><i class='bx bx-repeat'></i> จองซ้ำ</span>` : '';
+
+    let actionBtns;
+    if (d.status === 'รอพิจารณา') {
+      actionBtns = `<button class="btn-approve" onclick="approve(${d.id})"><i class='bx bx-check-circle'></i> อนุมัติ</button>
+         <button class="btn-reject"  onclick="reject(${d.id})"><i class='bx bx-x-circle'></i> ปฏิเสธ</button>`;
+    } else if (d.status === 'อนุมัติ') {
+      actionBtns = `<div class="decided-tag ok"><i class='bx bx-check-circle'></i> อนุมัติแล้ว</div>
+        <button class="btn-cancel" onclick="cancelOne(${d.id})"><i class='bx bx-block'></i> ยกเลิกรายการนี้</button>`
+        + (groupCount > 1
+            ? `<button class="btn-cancel-group" onclick="cancelGroup('${d.repeatGroupId}', ${groupCount})"><i class='bx bx-x'></i> ยกเลิกทั้งชุด (${groupCount})</button>`
+            : '');
+    } else if (d.status === 'ยกเลิก') {
+      actionBtns = `<div class="decided-tag cancel"><i class='bx bx-block'></i> ยกเลิกแล้ว</div>`;
+    } else {
+      actionBtns = `<div class="decided-tag reject"><i class='bx bx-x-circle'></i> ปฏิเสธแล้ว</div>`;
+    }
+
     const sigBtn = d.signatureUrl
       ? `<button class="btn-sig" onclick="window.open('${d.signatureUrl}','_blank')"><i class='bx bx-pen'></i> ลายเซ็น</button>`
       : '';
 
     return `<div class="card ${cardClass}" data-status="${d.status}">
       <div class="card-top">
-        <div class="card-title">${d.project}</div>
+        <div class="card-title">${d.project} ${repeatTag}</div>
         <span class="status-badge ${statusClass}">${d.status}</span>
       </div>
       <div class="card-info">
@@ -278,7 +316,7 @@ function renderCards(data) {
         <b>ผู้จอง :</b> ${d.name} (${d.position})<br>
         <b>โทร :</b> ${d.phone} &nbsp; <b>อีเมล :</b> ${d.email || '-'}<br>
         <b>ผู้เข้าร่วม :</b> ${d.qty} คน<br>
-        ${d.equipment ? '<b>อุปกรณ์ :</b> ' + d.equipment + '<br>' : ''}
+        ${d.equipment ? '<b>น้ำดื่ม :</b> ' + d.equipment + '<br>' : ''}
       </div>
       <div class="card-actions">
         ${actionBtns}
@@ -293,6 +331,10 @@ function filterCards(status, btn) {
   btn.classList.add('active');
   const filtered = status === 'all' ? allData : allData.filter(d => d.status === status);
   renderCards(filtered);
+}
+
+function showActionError(err) {
+  Swal.fire({ icon:'error', title:'เกิดข้อผิดพลาด', text: (err && err.message) ? err.message : String(err), confirmButtonColor:'#4f46e5' });
 }
 
 function approve(id) {
@@ -318,6 +360,7 @@ function approve(id) {
           Swal.fire({ icon:'error', title:'ผิดพลาด', text: res.message, confirmButtonColor:'#4f46e5' });
         }
       })
+      .withFailureHandler(showActionError)
       .approveReservation(adminPW, id);
   });
 }
@@ -345,7 +388,69 @@ function reject(id) {
           Swal.fire({ icon:'error', title:'ผิดพลาด', text: res.message, confirmButtonColor:'#4f46e5' });
         }
       })
+      .withFailureHandler(showActionError)
       .rejectReservation(adminPW, id, r.value);
+  });
+}
+
+function cancelOne(id) {
+  Swal.fire({
+    title: 'ยืนยันการยกเลิกรายการนี้?',
+    input: 'textarea',
+    inputPlaceholder: 'เหตุผล… (ถ้ามี)',
+    icon : 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'ยืนยันยกเลิก',
+    cancelButtonText : 'ปิด',
+    confirmButtonColor: '#475569',
+    cancelButtonColor: '#94a3b8'
+  }).then(r => {
+    if (!r.isConfirmed) return;
+    Swal.fire({ title:'กำลังดำเนินการ…', allowOutsideClick:false, didOpen:()=>Swal.showLoading() });
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res.success) {
+          allData.find(d => d.id === id).status = 'ยกเลิก';
+          renderCards(allData);
+          Swal.fire({ icon:'success', title:'ยกเลิกแล้ว', text: res.message, confirmButtonColor:'#4f46e5' });
+        } else {
+          Swal.fire({ icon:'error', title:'ผิดพลาด', text: res.message, confirmButtonColor:'#4f46e5' });
+        }
+      })
+      .withFailureHandler(showActionError)
+      .cancelReservation(adminPW, id, r.value);
+  });
+}
+
+function cancelGroup(groupId, count) {
+  Swal.fire({
+    title: `ยืนยันยกเลิกทั้งชุด (${count} รายการ)?`,
+    text : 'ทุกรายการในชุดจองซ้ำนี้ที่ยังไม่ถูกยกเลิก/ปฏิเสธจะถูกยกเลิกทั้งหมด',
+    input: 'textarea',
+    inputPlaceholder: 'เหตุผล… (ถ้ามี)',
+    icon : 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'ยืนยันยกเลิกทั้งชุด',
+    cancelButtonText : 'ปิด',
+    confirmButtonColor: '#ea580c',
+    cancelButtonColor: '#94a3b8'
+  }).then(r => {
+    if (!r.isConfirmed) return;
+    Swal.fire({ title:'กำลังดำเนินการ…', allowOutsideClick:false, didOpen:()=>Swal.showLoading() });
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res.success) {
+          allData.forEach(d => {
+            if (d.repeatGroupId === groupId && d.status !== 'ยกเลิก' && d.status !== 'ปฏิเสธ') d.status = 'ยกเลิก';
+          });
+          renderCards(allData);
+          Swal.fire({ icon:'success', title:'ยกเลิกทั้งชุดแล้ว', text: res.message, confirmButtonColor:'#4f46e5' });
+        } else {
+          Swal.fire({ icon:'error', title:'ผิดพลาด', text: res.message, confirmButtonColor:'#4f46e5' });
+        }
+      })
+      .withFailureHandler(showActionError)
+      .cancelReservationGroup(adminPW, groupId, r.value);
   });
 }
 </script>
