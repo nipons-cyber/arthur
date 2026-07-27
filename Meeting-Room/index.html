@@ -826,7 +826,11 @@ function downloadPDF(id) {
     allowOutsideClick: false, didOpen: () => Swal.showLoading()
   });
 
-  if (data.signatureUrl) {
+  if (data.signatureUrl && data.signatureUrl.startsWith('data:image')) {
+    // ลายเซ็นเก็บเป็น base64 data URI ตรงในข้อมูลอยู่แล้ว ใช้ได้ทันทีไม่ต้องเรียกเซิร์ฟเวอร์
+    buildAndSavePDF(data, data.signatureUrl);
+  } else if (data.signatureUrl) {
+    // รายการเก่าก่อนเปลี่ยนมาเก็บ base64 ตรงๆ — ลองขอจากเซิร์ฟเวอร์ ถ้าไม่ได้ก็พิมพ์แบบไม่มีลายเซ็น
     google.script.run
       .withSuccessHandler(function(base64img) {
         buildAndSavePDF(data, base64img || '');

@@ -302,7 +302,7 @@ function renderCards(data) {
     }
 
     const sigBtn = d.signatureUrl
-      ? `<button class="btn-sig" onclick="window.open('${d.signatureUrl}','_blank')"><i class='bx bx-pen'></i> ลายเซ็น</button>`
+      ? `<button class="btn-sig" onclick="viewSignature(${d.id})"><i class='bx bx-pen'></i> ลายเซ็น</button>`
       : '';
 
     return `<div class="card ${cardClass}" data-status="${d.status}">
@@ -324,6 +324,16 @@ function renderCards(data) {
       </div>
     </div>`;
   }).join('');
+}
+
+function viewSignature(id) {
+  const d = allData.find(x => x.id === id);
+  if (!d || !d.signatureUrl) return;
+  if (d.signatureUrl.startsWith('data:image')) {
+    Swal.fire({ title: 'ลายเซ็นผู้จอง', imageUrl: d.signatureUrl, imageAlt: 'ลายเซ็น', confirmButtonColor: '#4f46e5' });
+  } else {
+    window.open(d.signatureUrl, '_blank');
+  }
 }
 
 function filterCards(status, btn) {

@@ -4,7 +4,6 @@
 
 const SPREADSHEET_ID      = "xxxxxxxxxxxxxxxxxxxxxxxx"; // ไอดีชีต
 const SHEET_NAME          = "Reservations";
-const SIGNATURE_FOLDER_ID = "xxxxxxxxxxxxxxxxxxxxxxxxxxx"; // ไอดีโฟลเดอร์
 
 // ─── รายชื่อห้องประชุม + จำนวนที่นั่ง ───────────────────────
 // หมายเหตุ: index.html ดึงรายการนี้มาสร้าง <select> โดยตรงผ่าน HTML template
@@ -522,40 +521,15 @@ function cancelReservationGroup(password, groupId, reason) {
 }
 
 // ------------------------------------------------------------
-//  saveSignatureToDrive
-// ------------------------------------------------------------
-function saveSignatureToFile_(base64Data, filename) {
-  var raw   = base64Data.replace(/^data:image\/\w+;base64,/, "");
-  var blob  = Utilities.newBlob(Utilities.base64Decode(raw), "image/png", filename);
-  var folder= DriveApp.getFolderById(SIGNATURE_FOLDER_ID);
-  var file  = folder.createFile(blob);
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  return "https://drive.google.com/uc?export=view&id=" + file.getId();
-}
-
-// ------------------------------------------------------------
-//  getSignatureBase64 — ดึงไฟล์ลายเซ็นจาก Drive แล้วแปลงเป็น base64 data URI
-//  ใช้แทนการ <img src="...drive.google.com..."> ตรงๆ ในหน้าเว็บ เพราะ
-//  ลิงก์ Drive ไม่ส่ง CORS header ทำให้ html2canvas ไม่สามารถอ่านรูปมาวาด
-//  ลงบน PDF ได้ (ได้ PDF ที่ไม่มีลายเซ็น) การแปลงเป็น base64 ฝั่งเซิร์ฟเวอร์
-//  แล้วส่งเป็น data URI ให้ฝั่ง client จะไม่มีปัญหา CORS/taint canvas อีก
+//  getSignatureBase64 — คืนค่าลายเซ็น (base64 data URI) ให้ตรงตามที่เก็บไว้
+//  ลายเซ็นถูกเก็บเป็น base64 data URI ตรงในเซลล์ชีตอยู่แล้ว (ดู saveReservation)
+//  ฟังก์ชันนี้เก็บไว้เพื่อความเข้ากันได้กับ index.html เดิม และรองรับรายการ
+//  เก่าที่เคยเก็บเป็นลิงก์ Drive ไว้ก่อนย้ายมาเก็บ base64 ตรงๆ (จะคืนค่าว่าง
+//  เพราะไม่ใช้ DriveApp แล้ว — ระบบจะพิมพ์ PDF แบบไม่มีลายเซ็นสำหรับรายการเก่ากลุ่มนี้)
 // ------------------------------------------------------------
 function getSignatureBase64(url) {
-  try {
-    if (!url) return "";
-    var m = url.match(/id=([a-zA-Z0-9_-]+)/) || url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    var fileId = m ? m[1] : "";
-    if (!fileId) return "";
-
-    var file = DriveApp.getFileById(fileId);
-    var blob = file.getBlob();
-    var mimeType = blob.getContentType() || "image/png";
-    var base64 = Utilities.base64Encode(blob.getBytes());
-    return "data:" + mimeType + ";base64," + base64;
-  } catch (e) {
-    Logger.log("getSignatureBase64 error: " + e);
-    return "";
-  }
+  if (url && url.startsWith("data:image")) return url;
+  return "";
 }
 
 // ------------------------------------------------------------
@@ -669,13 +643,12 @@ function saveReservation(formData) {
       };
     }
 
-    var signatureUrl = "";
-    if (formData.signature && formData.signature.startsWith("data:image")) {
-      var fname = "sig_" + formData.date + "_"
-        + (formData.requester_name || "").replace(/\s/g,"_")
-        + "_" + Date.now() + ".png";
-      signatureUrl = saveSignatureToFile_(formData.signature, fname);
-    }
+    // เก็บลายเซ็นเป็น base64 data URI ตรงในเซลล์ชีตเลย (ไม่ผ่าน Google Drive)
+    // เพื่อไม่ให้ระบบจองต้องพึ่งสิทธิ์ DriveApp ซึ่งมักติดปัญหา authorization/สิทธิ์
+    // ขององค์กรที่ deploy — คอลัมน์นี้รองรับได้ถึง 50,000 ตัวอักษรต่อเซลล์
+    var signatureUrl = (formData.signature && formData.signature.startsWith("data:image"))
+      ? formData.signature
+      : "";
 
     var eq = [];
     if (formData.eq_water) eq.push("น้ำดื่ม: " + (formData.eq_water_qty || 0) + " ขวด");
@@ -783,10 +756,7 @@ function getTelegramUpdates() {
 
 
 function forceAuthorize() {
-  const ss     = SpreadsheetApp.getActiveSpreadsheet();
-  const folder = DriveApp.getRootFolder();
-  const doc    = DocumentApp.create('_auth_test_');
-  DriveApp.getFileById(doc.getId()).setTrashed(true);
+  SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);
   UrlFetchApp.fetch("https://api.telegram.org");
   MailApp.getRemainingDailyQuota();
   Logger.log('Authorization complete');
