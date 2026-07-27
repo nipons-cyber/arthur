@@ -156,6 +156,7 @@
     .tag-wait  {background:#fef3c7;color:#92400e;}
     .tag-ok    {background:#dcfce7;color:#14532d;}
     .tag-reject{background:#fee2e2;color:#7f1d1d;}
+    .tag-cancel{background:#e2e8f0;color:#334155;}
 
     .btn-pdf{
       display:inline-flex;align-items:center;gap:5px;background:#4f46e5;color:#fff;border:none;
@@ -224,13 +225,13 @@
       <div class="form-row">
         <div class="form-group">
           <label for="room">ชื่อห้องที่ต้องการจอง <span class="req">*</span></label>
-          <select id="room" name="room" required onchange="checkAvailableSlots()">
+          <select id="room" name="room" required onchange="onRoomChange()">
             <option value="">— เลือกห้องประชุม —</option>
-            <option value="ห้องประชุมใหญ่ชั้น 4">ห้องประชุมใหญ่ ชั้น 4</option>
-            <option value="ห้องประชุมย่อย ชั้น 3">ห้องประชุมย่อย ชั้น 3</option>
-            <option value="ห้องประชุมย่อย ชั้น 2">ห้องประชุมย่อย ชั้น 2</option>
-            <option value="พื้นที่กิจกรรมอื่น">พื้นที่กิจกรรมอื่น</option>
+            <? for (var ri = 0; ri < ROOMS.length; ri++) { ?>
+            <option value="<?= ROOMS[ri].name ?>" data-seats="<?= ROOMS[ri].seats ?>"><?= ROOMS[ri].name ?> (ที่นั่ง <?= ROOMS[ri].seats ?> ที่)</option>
+            <? } ?>
           </select>
+          <p id="roomCapHint" style="font-size:.78rem;color:#64748b;margin-top:6px;"></p>
         </div>
         <div class="form-group">
           <label for="date">วันที่ต้องการใช้งาน <span class="req">*</span></label>
@@ -253,6 +254,27 @@
         </div>
       </div>
 
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0;">
+          <input type="checkbox" id="repeatEnable" name="repeat_enable" value="yes" onchange="toggleRepeatOptions()" style="width:18px;height:18px;accent-color:#4f46e5;">
+          ต้องการจองซ้ำ (Repeat Booking)
+        </label>
+      </div>
+      <div class="form-row" id="repeatOptions" style="display:none;">
+        <div class="form-group">
+          <label for="repeat_freq">ความถี่ในการจองซ้ำ</label>
+          <select id="repeat_freq" name="repeat_freq">
+            <option value="daily">รายวัน (Daily)</option>
+            <option value="weekly" selected>รายสัปดาห์ (Weekly)</option>
+            <option value="monthly">รายเดือน (Monthly)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="repeat_count">จำนวนครั้งที่ต้องการจอง (รวมวันแรก)</label>
+          <input type="number" id="repeat_count" name="repeat_count" min="2" max="52" value="4">
+        </div>
+      </div>
+
       <div class="form-row">
         <div class="form-group">
           <label for="project_name">ชื่อโครงการ / กิจกรรม <span class="req">*</span></label>
@@ -264,29 +286,15 @@
         </div>
       </div>
 
-      <p class="section-label" style="margin-top:6px">อาหาร / อุปกรณ์ที่ขอใช้</p>
+      <p class="section-label" style="margin-top:6px">น้ำดื่มที่ขอใช้</p>
       <div class="form-group">
         <div class="equipment-box">
           <div class="eq-row">
-            <input type="checkbox" id="eq_breakfast" name="eq_breakfast" value="Yes">
-            <label for="eq_breakfast">อาหารว่างเช้า</label>
+            <input type="checkbox" id="eq_water" name="eq_water" value="Yes">
+            <label for="eq_water">น้ำดื่ม</label>
             <span style="color:#64748b;font-size:.85rem">จำนวน</span>
-            <input type="number" id="eq_breakfast_qty" name="eq_breakfast_qty" class="eq-num" min="0" value="0">
-            <span style="color:#64748b;font-size:.85rem">ชุด</span>
-          </div>
-          <div class="eq-row">
-            <input type="checkbox" id="eq_lunch" name="eq_lunch" value="Yes">
-            <label for="eq_lunch">อาหารกลางวัน</label>
-            <span style="color:#64748b;font-size:.85rem">จำนวน</span>
-            <input type="number" id="eq_lunch_qty" name="eq_lunch_qty" class="eq-num" min="0" value="0">
-            <span style="color:#64748b;font-size:.85rem">ชุด</span>
-          </div>
-          <div class="eq-row">
-            <input type="checkbox" id="eq_afternoon" name="eq_afternoon" value="Yes">
-            <label for="eq_afternoon">อาหารว่างบ่าย</label>
-            <span style="color:#64748b;font-size:.85rem">จำนวน</span>
-            <input type="number" id="eq_afternoon_qty" name="eq_afternoon_qty" class="eq-num" min="0" value="0">
-            <span style="color:#64748b;font-size:.85rem">ชุด</span>
+            <input type="number" id="eq_water_qty" name="eq_water_qty" class="eq-num" min="0" value="0">
+            <span style="color:#64748b;font-size:.85rem">ขวด</span>
           </div>
         </div>
       </div>
@@ -432,10 +440,19 @@ function formatDateTH(dateStr) {
 }
 
 const ROOM_COLORS = {
-  'ห้องประชุมใหญ่ชั้น 4' : '#4f46e5',
-  'ห้องประชุมย่อย ชั้น 3': '#0891b2',
-  'ห้องประชุมย่อย ชั้น 2': '#059669',
-  'พื้นที่กิจกรรมอื่น'   : '#d97706'
+  'Stark 1'        : '#4f46e5',
+  'Maverick 2'     : '#0891b2',
+  'Gump 3'         : '#059669',
+  'Sherlock 4'     : '#d97706',
+  'Wayne 5'        : '#db2777',
+  'Thor 6'         : '#7c3aed',
+  'Hermione 7'     : '#dc2626',
+  'Yoda 8'         : '#16a34a',
+  'Platform 9-3/4' : '#9333ea',
+  'Natasha 10'     : '#ea580c',
+  'Dumbledore 11'  : '#0d9488',
+  'Hulk 12'        : '#65a30d',
+  'Parker 13'      : '#2563eb'
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -475,7 +492,8 @@ function renderCalendar(events) {
   const calEvents = events.map(function(ev) {
     const color  = ROOM_COLORS[ev.room] || '#6366f1';
     const status = ev.status || 'รอพิจารณา';
-    const evColor = status === 'ปฏิเสธ' ? '#94a3b8'
+    const evColor = status === 'ปฏิเสธ'  ? '#94a3b8'
+                  : status === 'ยกเลิก'  ? '#64748b'
                   : status === 'อนุมัติ' ? color
                   : '#f59e0b';
     return {
@@ -542,9 +560,11 @@ function renderHistoryPage() {
 
     const statusClass = status === 'อนุมัติ' ? 'tag-ok'
                       : status === 'ปฏิเสธ'   ? 'tag-reject'
+                      : status === 'ยกเลิก'   ? 'tag-cancel'
                       : 'tag-wait';
     const statusLabel = status === 'อนุมัติ' ? "<i class='bx bx-check-circle'></i> อนุมัติ"
                       : status === 'ปฏิเสธ'   ? "<i class='bx bx-x-circle'></i> ปฏิเสธ"
+                      : status === 'ยกเลิก'   ? "<i class='bx bx-block'></i> ยกเลิก"
                       : "<i class='bx bx-time-five'></i> รอพิจารณา";
 
     const docCell = status === 'อนุมัติ'
@@ -577,6 +597,26 @@ function updateHistoryPaginationUI(page, totalPages) {
 function changeHistoryPage(delta) {
   historyPage += delta;
   renderHistoryPage();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Room Change — แสดงความจุห้อง + โหลดเวลาว่าง
+// ═══════════════════════════════════════════════════════════
+function onRoomChange() {
+  const sel  = document.getElementById('room');
+  const opt  = sel.options[sel.selectedIndex];
+  const seats = opt ? opt.getAttribute('data-seats') : null;
+  document.getElementById('roomCapHint').textContent =
+    seats ? `ห้องนี้รองรับผู้เข้าร่วมสูงสุด ${seats} ที่นั่ง` : '';
+  checkAvailableSlots();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Repeat Booking Toggle
+// ═══════════════════════════════════════════════════════════
+function toggleRepeatOptions() {
+  const enabled = document.getElementById('repeatEnable').checked;
+  document.getElementById('repeatOptions').style.display = enabled ? 'flex' : 'none';
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -717,6 +757,20 @@ function updateEndTimeOptions() {
 // ═══════════════════════════════════════════════════════════
 function handleFormSubmit(e) {
   e.preventDefault();
+
+  const roomSel  = document.getElementById('room');
+  const roomOpt  = roomSel.options[roomSel.selectedIndex];
+  const capacity = roomOpt ? parseInt(roomOpt.getAttribute('data-seats'), 10) : null;
+  const qty      = parseInt(document.getElementById('participants').value, 10);
+  if (capacity && qty > capacity) {
+    Swal.fire({
+      icon: 'warning', title: 'จำนวนผู้เข้าร่วมเกินความจุห้อง',
+      text: `ห้อง ${roomOpt.value} รองรับผู้เข้าร่วมสูงสุด ${capacity} ที่นั่ง กรุณาลดจำนวนหรือเลือกห้องอื่น`,
+      confirmButtonColor: '#f59e0b'
+    });
+    return;
+  }
+
   Swal.fire({
     title: 'กำลังบันทึกข้อมูล…', text: 'กรุณารอสักครู่',
     allowOutsideClick: false, didOpen: () => Swal.showLoading()
@@ -727,23 +781,34 @@ function handleFormSubmit(e) {
   new FormData(form).forEach((v, k) => formData[k] = v);
   formData.signature = window._sigCanvas.toDataURL('image/png');
 
-  google.script.run.withSuccessHandler(function(res) {
-    if (res.success) {
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (res.success) {
+        Swal.fire({
+          icon: 'success', title: 'ส่งคำขอสำเร็จ!', text: res.message,
+          confirmButtonColor: '#4f46e5'
+        }).then(() => {
+          form.reset();
+          const c = window._sigCanvas;
+          c.getContext('2d').clearRect(0, 0, c.width, c.height);
+          document.getElementById('sigHint').classList.remove('hidden');
+          document.getElementById('start_time').disabled = true;
+          document.getElementById('end_time').disabled   = true;
+          document.getElementById('roomCapHint').textContent = '';
+          toggleRepeatOptions();
+        });
+      } else {
+        Swal.fire({ icon:'error', title:'เกิดข้อผิดพลาด', text: res.message, confirmButtonColor:'#ef4444' });
+      }
+    })
+    .withFailureHandler(function(err) {
       Swal.fire({
-        icon: 'success', title: 'ส่งคำขอสำเร็จ!', text: res.message,
-        confirmButtonColor: '#4f46e5'
-      }).then(() => {
-        form.reset();
-        const c = window._sigCanvas;
-        c.getContext('2d').clearRect(0, 0, c.width, c.height);
-        document.getElementById('sigHint').classList.remove('hidden');
-        document.getElementById('start_time').disabled = true;
-        document.getElementById('end_time').disabled   = true;
+        icon: 'error', title: 'เกิดข้อผิดพลาด',
+        text: (err && err.message) ? err.message : String(err),
+        confirmButtonColor: '#ef4444'
       });
-    } else {
-      Swal.fire({ icon:'error', title:'เกิดข้อผิดพลาด', text: res.message, confirmButtonColor:'#ef4444' });
-    }
-  }).saveReservation(formData);
+    })
+    .saveReservation(formData);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -776,13 +841,9 @@ function downloadPDF(id) {
 }
 
 function buildAndSavePDF(data, sigBase64) {
-  const isBreakfast = data.equipment.includes('อาหารว่างเช้า');
-  const isLunch     = data.equipment.includes('อาหารกลางวัน');
-  const isAfternoon = data.equipment.includes('อาหารว่างบ่าย');
-  let breakfastQty = '0', lunchQty = '0', afternoonQty = '0';
-  if (isBreakfast) { const m = data.equipment.match(/อาหารว่างเช้า:\s*(\d+)/);  if (m) breakfastQty = m[1]; }
-  if (isLunch)     { const m = data.equipment.match(/อาหารกลางวัน:\s*(\d+)/);   if (m) lunchQty     = m[1]; }
-  if (isAfternoon) { const m = data.equipment.match(/อาหารว่างบ่าย:\s*(\d+)/);  if (m) afternoonQty = m[1]; }
+  const isWater = data.equipment.includes('น้ำดื่ม');
+  let waterQty = '0';
+  if (isWater) { const m = data.equipment.match(/น้ำดื่ม:\s*(\d+)/); if (m) waterQty = m[1]; }
 
   const dateDisplay = formatDateTH(data.date);
   const ck = v => v ? '✓' : '☐';
@@ -832,17 +893,13 @@ function buildAndSavePDF(data, sigBase64) {
 </div>
 <div class="sh">พื้นที่ที่ขอใช้ :</div>
 <div style="padding-left:6px;margin-bottom:6px;font-size:12.5px;">
-  ${ck(data.room !== 'พื้นที่กิจกรรมอื่น')} ห้องประชุม <span class="ul">${data.room !== 'พื้นที่กิจกรรมอื่น' ? data.room : ''}</span>
-  &nbsp;&nbsp;
-  ${ck(data.room === 'พื้นที่กิจกรรมอื่น')} พื้นที่บริเวณ <span class="ul">${data.room === 'พื้นที่กิจกรรมอื่น' ? 'พื้นที่กิจกรรมอื่น' : ''}</span>
+  ${ck(true)} ห้องประชุม <span class="ul">${data.room}</span>
 </div>
 <div class="sh">เรื่อง / กิจกรรม :</div>
 <div style="padding-left:6px;margin-bottom:6px;font-size:12.5px;border-bottom:1px solid #bbb;padding-bottom:2px;">${data.project}</div>
-<div class="sh">อาหาร / อุปกรณ์ที่ขอใช้ :</div>
+<div class="sh">น้ำดื่มที่ขอใช้ :</div>
 <div style="padding-left:6px;">
-  <div class="er"><span style="width:16px;text-align:center">${ck(isBreakfast)}</span> อาหารว่างเช้า จำนวน <b>${breakfastQty}</b> ชุด</div>
-  <div class="er"><span style="width:16px;text-align:center">${ck(isLunch)}</span> อาหารกลางวัน จำนวน <b>${lunchQty}</b> ชุด</div>
-  <div class="er"><span style="width:16px;text-align:center">${ck(isAfternoon)}</span> อาหารว่างบ่าย จำนวน <b>${afternoonQty}</b> ชุด</div>
+  <div class="er"><span style="width:16px;text-align:center">${ck(isWater)}</span> น้ำดื่ม จำนวน <b>${waterQty}</b> ขวด</div>
   <div class="er"><span style="width:16px;text-align:center">☐</span> อื่นๆ ระบุ ..........................................................................................</div>
 </div>
 <div class="sg">

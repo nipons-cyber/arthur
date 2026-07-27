@@ -6,6 +6,31 @@ const SPREADSHEET_ID      = "xxxxxxxxxxxxxxxxxxxxxxxx"; // ไอดีชีต
 const SHEET_NAME          = "Reservations";
 const SIGNATURE_FOLDER_ID = "xxxxxxxxxxxxxxxxxxxxxxxxxxx"; // ไอดีโฟลเดอร์
 
+// ─── รายชื่อห้องประชุม + จำนวนที่นั่ง ───────────────────────
+// หมายเหตุ: index.html ดึงรายการนี้มาสร้าง <select> โดยตรงผ่าน HTML template
+// scriptlet (<? ROOMS ?>) เพื่อให้ฝั่ง client กับ server ใช้ข้อมูลชุดเดียวกันเสมอ
+const ROOMS = [
+  { name: "Stark 1",          seats: 6  },
+  { name: "Maverick 2",       seats: 18 },
+  { name: "Gump 3",           seats: 40 },
+  { name: "Sherlock 4",       seats: 18 },
+  { name: "Wayne 5",          seats: 6  },
+  { name: "Thor 6",           seats: 6  },
+  { name: "Hermione 7",       seats: 6  },
+  { name: "Yoda 8",           seats: 30 },
+  { name: "Platform 9-3/4",   seats: 8  },
+  { name: "Natasha 10",       seats: 8  },
+  { name: "Dumbledore 11",    seats: 18 },
+  { name: "Hulk 12",          seats: 6  },
+  { name: "Parker 13",        seats: 4  }
+];
+
+const REPEAT_FREQUENCIES = ["daily", "weekly", "monthly"];
+const STATUS_PENDING   = "รอพิจารณา";
+const STATUS_APPROVED  = "อนุมัติ";
+const STATUS_REJECTED  = "ปฏิเสธ";
+const STATUS_CANCELLED = "ยกเลิก";
+
 // ─── ตั้งค่า Telegram ───────────────────────────────────────
 const TELEGRAM_BOT_TOKEN       = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx";        // ใส่ token จาก @BotFather
 const TELEGRAM_CHAT_ID         = "xxxxxxxxxxxxxxxxx";          // ใส่ chat_id ของ admin (แจ้งเตือนตอนมีการจองใหม่)
@@ -89,16 +114,74 @@ function getBookedSlots(room, date) {
     .openById(SPREADSHEET_ID)
     .getSheetByName(SHEET_NAME)
     .getDataRange().getValues();
+  return filterBookedRows_(data, room, date);
+}
 
-  // นับเฉพาะแถวที่ status ไม่ใช่ "ปฏิเสธ"
+// นับเฉพาะแถวที่ยังมีผลอยู่ (ไม่ใช่แถวที่ถูกปฏิเสธหรือยกเลิกไปแล้ว)
+// แยกเป็นฟังก์ชันกลางเพื่อให้ saveReservation เช็คหลายวันพร้อมกัน (จองซ้ำ)
+// ได้จากข้อมูลชีตที่อ่านมาครั้งเดียว แทนที่จะเปิดชีตซ้ำทีละวัน
+function filterBookedRows_(data, room, date) {
   return data.slice(1)
     .filter(function(r) {
       return r[0] && r[1] === room && parseRowDate(r[0]) === date
-             && r[12] !== 'ปฏิเสธ';
+             && r[12] !== STATUS_REJECTED && r[12] !== STATUS_CANCELLED;
     })
     .map(function(r) {
       return { start: parseRowTime(r[2]), end: parseRowTime(r[3]) };
     });
+}
+
+// ------------------------------------------------------------
+//  ตัวช่วยคำนวณวันที่สำหรับการจองซ้ำ (Daily / Weekly / Monthly)
+// ------------------------------------------------------------
+function findRoom_(roomName) {
+  for (var i = 0; i < ROOMS.length; i++) {
+    if (ROOMS[i].name === roomName) return ROOMS[i];
+  }
+  return null;
+}
+
+function parseDateStrParts_(dateStr) {
+  var p = dateStr.split("-");
+  return { y: parseInt(p[0], 10), m: parseInt(p[1], 10), d: parseInt(p[2], 10) };
+}
+
+function formatDateParts_(y, m, d) {
+  var mm = (m < 10 ? "0" : "") + m;
+  var dd = (d < 10 ? "0" : "") + d;
+  return y + "-" + mm + "-" + dd;
+}
+
+function daysInMonth_(y, m) {
+  return new Date(y, m, 0).getDate(); // m นับ 1-12; new Date(y, m, 0) = วันสุดท้ายของเดือน m
+}
+
+function addDaysToDateStr_(dateStr, days) {
+  var p = parseDateStrParts_(dateStr);
+  var d = new Date(p.y, p.m - 1, p.d);
+  d.setDate(d.getDate() + days);
+  return formatDateParts_(d.getFullYear(), d.getMonth() + 1, d.getDate());
+}
+
+// บวกจำนวนเดือน โดย clamp วันที่ให้ไม่เกินวันสุดท้ายของเดือนปลายทาง
+// เช่น 31 ม.ค. + 1 เดือน = 28/29 ก.พ. (ไม่ใช่ 2/3 มี.ค.)
+function addMonthsClampedToDateStr_(dateStr, months) {
+  var p = parseDateStrParts_(dateStr);
+  var totalMonths = (p.m - 1) + months;
+  var y = p.y + Math.floor(totalMonths / 12);
+  var m = (totalMonths % 12) + 1;
+  var d = Math.min(p.d, daysInMonth_(y, m));
+  return formatDateParts_(y, m, d);
+}
+
+function computeRepeatDates_(startDateStr, freq, count) {
+  var dates = [startDateStr];
+  for (var i = 1; i < count; i++) {
+    if (freq === "daily")        dates.push(addDaysToDateStr_(startDateStr, i));
+    else if (freq === "weekly")  dates.push(addDaysToDateStr_(startDateStr, i * 7));
+    else if (freq === "monthly") dates.push(addMonthsClampedToDateStr_(startDateStr, i));
+  }
+  return dates;
 }
 
 // ------------------------------------------------------------
@@ -127,7 +210,8 @@ function getAllReservations() {
       phone        : (data[i][9]  || "").toString(),
       signatureUrl : (data[i][10] || "").toString(),
       email        : (data[i][11] || "").toString(),
-      status       : (data[i][12] || "รอพิจารณา").toString()
+      status       : (data[i][12] || STATUS_PENDING).toString(),
+      repeatGroupId: (data[i][13] || "").toString()
     });
   }
   return events;
@@ -146,16 +230,22 @@ function getAllReservationsAdmin(password) {
 //  buildEmailHtml_ — สร้างเทมเพลต HTML email กลาง ใช้ทั้งอนุมัติ/ปฏิเสธ
 // ------------------------------------------------------------
 function buildEmailHtml_(opts) {
-  // opts: { isApproved, name, room, date, start, end, project, qty, reason }
-  var accent   = opts.isApproved ? "#15803d" : "#991b1b";
-  var accentBg = opts.isApproved ? "#dcfce7" : "#fee2e2";
-  var headLine = opts.isApproved ? "✅ การจองห้องประชุมได้รับการอนุมัติ" : "❌ การจองห้องประชุมไม่ได้รับการอนุมัติ";
-  var introMsg = opts.isApproved
+  // opts: { kind: 'approved'|'rejected'|'cancelled', name, room, date, start, end, project, qty, reason }
+  var kind = opts.kind || (opts.isApproved ? "approved" : "rejected"); // isApproved: เผื่อโค้ดเก่าเรียกแบบเดิม
+
+  var accent   = kind === "approved" ? "#15803d" : kind === "cancelled" ? "#475569" : "#991b1b";
+  var accentBg = kind === "approved" ? "#dcfce7" : kind === "cancelled" ? "#e2e8f0" : "#fee2e2";
+  var headLine = kind === "approved"  ? "✅ การจองห้องประชุมได้รับการอนุมัติ"
+               : kind === "cancelled" ? "🚫 การจองห้องประชุมถูกยกเลิก"
+               :                        "❌ การจองห้องประชุมไม่ได้รับการอนุมัติ";
+  var introMsg = kind === "approved"
     ? "การจองห้องประชุมของท่านได้รับการอนุมัติแล้ว กรุณาเข้าระบบเพื่อดาวน์โหลดแบบฟอร์ม PDF สำหรับใช้เป็นเอกสารยืนยัน"
-    : "ขออภัยในความไม่สะดวก การจองห้องประชุมของท่านไม่ได้รับการอนุมัติในครั้งนี้";
+    : kind === "cancelled"
+      ? "การจองห้องประชุมของท่านถูกยกเลิกโดยผู้ดูแลระบบ"
+      : "ขออภัยในความไม่สะดวก การจองห้องประชุมของท่านไม่ได้รับการอนุมัติในครั้งนี้";
 
   var reasonBlock = "";
-  if (!opts.isApproved) {
+  if (kind !== "approved") {
     reasonBlock =
       '<tr><td style="padding:14px 28px 0;">' +
         '<div style="background:#fff7f7;border:1px solid #fecaca;border-radius:10px;padding:14px 16px;">' +
@@ -204,8 +294,11 @@ function buildEmailHtml_(opts) {
 
 function buildEmailPlainText_(opts) {
   // ข้อความล้วนสำรอง สำหรับไคลเอนต์อีเมลที่ไม่รองรับ HTML
+  var kind = opts.kind || (opts.isApproved ? "approved" : "rejected");
   var lines = [];
-  lines.push(opts.isApproved ? "การจองห้องประชุมได้รับการอนุมัติ" : "การจองห้องประชุมไม่ได้รับการอนุมัติ");
+  lines.push(kind === "approved"  ? "การจองห้องประชุมได้รับการอนุมัติ"
+           : kind === "cancelled" ? "การจองห้องประชุมถูกยกเลิก"
+           :                        "การจองห้องประชุมไม่ได้รับการอนุมัติ");
   lines.push("");
   lines.push("เรียน คุณ" + opts.name);
   lines.push("");
@@ -213,7 +306,7 @@ function buildEmailPlainText_(opts) {
   lines.push("วันที่      : " + formatDateThaiLong_(opts.date));
   lines.push("เวลา       : " + opts.start + " – " + opts.end + " น.");
   lines.push("โครงการ    : " + opts.project);
-  if (!opts.isApproved) {
+  if (kind !== "approved") {
     lines.push("");
     lines.push("เหตุผล: " + (opts.reason || "ไม่ระบุ"));
   }
@@ -231,7 +324,11 @@ function sendDecisionEmail_(email, opts) {
     return false;
   }
   try {
-    var subject = (opts.isApproved ? "✅ อนุมัติการจองห้องประชุม — " : "❌ ไม่อนุมัติการจองห้องประชุม — ") + opts.project;
+    var kind = opts.kind || (opts.isApproved ? "approved" : "rejected");
+    var subjectPrefix = kind === "approved"  ? "✅ อนุมัติการจองห้องประชุม — "
+                       : kind === "cancelled" ? "🚫 ยกเลิกการจองห้องประชุม — "
+                       :                        "❌ ไม่อนุมัติการจองห้องประชุม — ";
+    var subject = subjectPrefix + opts.project;
     MailApp.sendEmail({
       to       : email,
       subject  : subject,
@@ -258,7 +355,7 @@ function approveReservation(password, rowId) {
   var realRow = parseInt(rowId) + 1;  // +1 เพราะ row 1 = header
 
   // อัปเดต column M (index 13) = status
-  sheet.getRange(realRow, 13).setValue("อนุมัติ");
+  sheet.getRange(realRow, 13).setValue(STATUS_APPROVED);
 
   // ดึงข้อมูลแถวนั้นมาส่งอีเมล / แจ้งเตือน
   var row = sheet.getRange(realRow, 1, 1, 13).getValues()[0];
@@ -275,7 +372,7 @@ function approveReservation(password, rowId) {
   var phone     = (row[9]  || "").toString();
 
   var emailSent = sendDecisionEmail_(email, {
-    isApproved: true, name: name, room: room, date: date,
+    kind: "approved", name: name, room: room, date: date,
     start: start, end: end, project: project, qty: qty
   });
 
@@ -291,8 +388,8 @@ function approveReservation(password, rowId) {
     + "👤 ผู้จอง   : " + name + " (" + position + ")\n"
     + "☎️ โทร     : " + phone + "\n"
     + "👥 จำนวน   : " + qty + " คน\n"
-    + "🍱 รายการ  : " + (equipment || "-") + "\n\n"
-    + "กรุณาเตรียมสถานที่และอาหารตามรายการข้างต้น พร้อมเข้าเว็บระบบเพื่อพิมพ์เอกสาร PDF ยืนยันการจอง (แท็บ \"ปฏิทิน & ประวัติการจอง\")"
+    + "🥤 น้ำดื่ม  : " + (equipment || "-") + "\n\n"
+    + "กรุณาเตรียมสถานที่และน้ำดื่มตามรายการข้างต้น พร้อมเข้าเว็บระบบเพื่อพิมพ์เอกสาร PDF ยืนยันการจอง (แท็บ \"ปฏิทิน & ประวัติการจอง\")"
     + (baseUrl ? "\n🔗 " + baseUrl : "");
 
   var maidSent = sendTelegramNotification_(maidMsg, TELEGRAM_MAEBAAN_CHAT_ID);
@@ -317,7 +414,7 @@ function rejectReservation(password, rowId, reason) {
 
   var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);
   var realRow = parseInt(rowId) + 1;
-  sheet.getRange(realRow, 13).setValue("ปฏิเสธ");
+  sheet.getRange(realRow, 13).setValue(STATUS_REJECTED);
 
   var row = sheet.getRange(realRow, 1, 1, 13).getValues()[0];
   var email   = (row[11] || "").toString();
@@ -329,7 +426,7 @@ function rejectReservation(password, rowId, reason) {
   var end     = parseRowTime(row[3]);
 
   var emailSent = sendDecisionEmail_(email, {
-    isApproved: false, name: name, room: room, date: date,
+    kind: "rejected", name: name, room: room, date: date,
     start: start, end: end, project: project, reason: reason
   });
 
@@ -338,6 +435,89 @@ function rejectReservation(password, rowId, reason) {
     message: emailSent
       ? "บันทึกการปฏิเสธเรียบร้อยแล้ว และส่งอีเมลแจ้งผู้จองแล้ว"
       : "บันทึกการปฏิเสธเรียบร้อยแล้ว (ไม่สามารถส่งอีเมลได้ — โปรดตรวจสอบอีเมลผู้จองหรือสิทธิ์การส่งเมล)"
+  };
+}
+
+// ------------------------------------------------------------
+//  cancelReservation — admin ยกเลิกการจอง 1 รายการ
+//  (ใช้กับรายการที่ "รอพิจารณา" หรือ "อนุมัติ" ไปแล้วก็ได้ เผื่อลูกค้าแจ้งยกเลิกทีหลัง)
+// ------------------------------------------------------------
+function cancelReservation(password, rowId, reason) {
+  if (password !== ADMIN_PASSWORD)
+    return { success: false, message: "รหัสผ่านไม่ถูกต้อง" };
+
+  var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);
+  var realRow = parseInt(rowId) + 1;
+  sheet.getRange(realRow, 13).setValue(STATUS_CANCELLED);
+
+  var row = sheet.getRange(realRow, 1, 1, 13).getValues()[0];
+  var email   = (row[11] || "").toString();
+  var name    = (row[7]  || "").toString();
+  var project = (row[4]  || "").toString();
+  var date    = parseRowDate(row[0]);
+  var room    = (row[1]  || "").toString();
+  var start   = parseRowTime(row[2]);
+  var end     = parseRowTime(row[3]);
+
+  var emailSent = sendDecisionEmail_(email, {
+    kind: "cancelled", name: name, room: room, date: date,
+    start: start, end: end, project: project, reason: reason
+  });
+
+  return {
+    success: true,
+    message: emailSent
+      ? "ยกเลิกรายการเรียบร้อยแล้ว และส่งอีเมลแจ้งผู้จองแล้ว"
+      : "ยกเลิกรายการเรียบร้อยแล้ว (ไม่สามารถส่งอีเมลได้ — โปรดตรวจสอบอีเมลผู้จองหรือสิทธิ์การส่งเมล)"
+  };
+}
+
+// ------------------------------------------------------------
+//  cancelReservationGroup — admin ยกเลิกการจองซ้ำทั้งชุด (repeat booking)
+//  โดยยกเลิกทุกแถวที่มี repeatGroupId (column N) ตรงกัน และยังไม่ถูกยกเลิก/ปฏิเสธไปก่อนแล้ว
+// ------------------------------------------------------------
+function cancelReservationGroup(password, groupId, reason) {
+  if (password !== ADMIN_PASSWORD)
+    return { success: false, message: "รหัสผ่านไม่ถูกต้อง" };
+  if (!groupId)
+    return { success: false, message: "ไม่พบชุดการจองซ้ำนี้" };
+
+  var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);
+  var data  = sheet.getDataRange().getValues();
+
+  var name = "", email = "", project = "", room = "", start = "", end = "";
+  var cancelledDates = [];
+
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    if ((row[13] || "").toString() !== groupId) continue;
+    var status = (row[12] || STATUS_PENDING).toString();
+    if (status === STATUS_CANCELLED || status === STATUS_REJECTED) continue;
+
+    sheet.getRange(i + 1, 13).setValue(STATUS_CANCELLED);
+    cancelledDates.push(formatDateThaiLong_(parseRowDate(row[0])));
+
+    name    = (row[7]  || "").toString();
+    email   = (row[11] || "").toString();
+    project = (row[4]  || "").toString();
+    room    = (row[1]  || "").toString();
+    start   = parseRowTime(row[2]);
+    end     = parseRowTime(row[3]);
+  }
+
+  if (!cancelledDates.length)
+    return { success: false, message: "ไม่พบรายการในชุดนี้ที่สามารถยกเลิกได้ (อาจถูกยกเลิกไปแล้วทั้งหมด)" };
+
+  var emailSent = sendDecisionEmail_(email, {
+    kind: "cancelled", name: name, room: room,
+    date: "", start: start, end: end, project: project,
+    reason: (reason || "") + "\nยกเลิกทั้งชุด (" + cancelledDates.length + " วัน): " + cancelledDates.join(", ")
+  });
+
+  return {
+    success: true,
+    message: "ยกเลิกทั้งชุด " + cancelledDates.length + " รายการเรียบร้อยแล้ว"
+      + (emailSent ? " และส่งอีเมลแจ้งผู้จองแล้ว" : " (ไม่สามารถส่งอีเมลได้)")
   };
 }
 
@@ -441,15 +621,52 @@ function testTelegramMaebaan() {
 // ------------------------------------------------------------
 function saveReservation(formData) {
   try {
-    var existing = getBookedSlots(formData.room, formData.date);
+    var room = findRoom_(formData.room);
+    if (!room) {
+      return { success: false, message: "⚠️ ไม่พบห้องประชุมที่เลือก กรุณาเลือกห้องจากรายการ" };
+    }
+
+    var qty = parseInt(formData.participants, 10) || 0;
+    if (qty > room.seats) {
+      return {
+        success: false,
+        message: "⚠️ จำนวนผู้เข้าร่วม (" + qty + " คน) เกินความจุของห้อง " + room.name
+          + " (รองรับสูงสุด " + room.seats + " ที่นั่ง)"
+      };
+    }
+
+    var isRepeat = formData.repeat_enable === "yes";
+    var freq     = formData.repeat_freq;
+    var count    = isRepeat ? (parseInt(formData.repeat_count, 10) || 1) : 1;
+    if (isRepeat && REPEAT_FREQUENCIES.indexOf(freq) === -1) {
+      return { success: false, message: "⚠️ กรุณาเลือกความถี่การจองซ้ำให้ถูกต้อง" };
+    }
+    if (isRepeat && (count < 2 || count > 52)) {
+      return { success: false, message: "⚠️ จำนวนครั้งที่จองซ้ำต้องอยู่ระหว่าง 2-52 ครั้ง" };
+    }
+
+    var dates = isRepeat ? computeRepeatDates_(formData.date, freq, count) : [formData.date];
+
+    var sheet    = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);
+    var allRows  = sheet.getDataRange().getValues();
     var ns = formData.start_time, ne = formData.end_time;
-    for (var i = 0; i < existing.length; i++) {
-      var s = existing[i];
-      if ((ns >= s.start && ns < s.end) ||
-          (ne >  s.start && ne <= s.end) ||
-          (ns <= s.start && ne >= s.end)) {
-        return { success: false, message: "⚠️ ไม่สามารถจองได้ เนื่องจากช่วงเวลานี้ถูกจองไปแล้ว" };
-      }
+    var conflictDates = [];
+
+    dates.forEach(function(dateStr) {
+      var existing = filterBookedRows_(allRows, formData.room, dateStr);
+      var conflict = existing.some(function(s) {
+        return (ns >= s.start && ns < s.end) ||
+               (ne >  s.start && ne <= s.end) ||
+               (ns <= s.start && ne >= s.end);
+      });
+      if (conflict) conflictDates.push(formatDateThaiLong_(dateStr));
+    });
+
+    if (conflictDates.length) {
+      return {
+        success: false,
+        message: "⚠️ ไม่สามารถจองได้ เนื่องจากช่วงเวลานี้ถูกจองไปแล้วในวันที่: " + conflictDates.join(", ")
+      };
     }
 
     var signatureUrl = "";
@@ -461,16 +678,15 @@ function saveReservation(formData) {
     }
 
     var eq = [];
-    if (formData.eq_breakfast) eq.push("อาหารว่างเช้า: "  + (formData.eq_breakfast_qty || 0) + " ชุด");
-    if (formData.eq_lunch)     eq.push("อาหารกลางวัน: "   + (formData.eq_lunch_qty     || 0) + " ชุด");
-    if (formData.eq_afternoon) eq.push("อาหารว่างบ่าย: "  + (formData.eq_afternoon_qty || 0) + " ชุด");
+    if (formData.eq_water) eq.push("น้ำดื่ม: " + (formData.eq_water_qty || 0) + " ขวด");
+
+    var groupId = (isRepeat && dates.length > 1) ? ("RG-" + Utilities.getUuid()) : "";
 
     // column: A=date, B=room, C=start, D=end, E=project, F=qty, G=equipment,
-    //         H=name, I=position, J=phone, K=signatureUrl, L=email, M=status
-    SpreadsheetApp.openById(SPREADSHEET_ID)
-      .getSheetByName(SHEET_NAME)
-      .appendRow([
-        formData.date,
+    //         H=name, I=position, J=phone, K=signatureUrl, L=email, M=status, N=repeatGroupId
+    dates.forEach(function(dateStr) {
+      sheet.appendRow([
+        dateStr,
         formData.room,
         formData.start_time,
         formData.end_time,
@@ -482,23 +698,33 @@ function saveReservation(formData) {
         formData.phone,
         signatureUrl,
         formData.email || "",   // ← column L
-        "รอพิจารณา"             // ← column M
+        STATUS_PENDING,          // ← column M
+        groupId                  // ← column N
       ]);
+    });
 
     // ─ แจ้ง Telegram (ระยะที่ 1) : แจ้ง admin ว่ามีคำขอจองใหม่ ─
-    var msg = "🔔 <b>มีคำขอจองห้องประชุมใหม่!</b>\n\n"
+    var dateLine = dates.length > 1
+      ? dates.map(function(x) { return formatDateThaiLong_(x); }).join(", ")
+      : formData.date;
+    var msg = "🔔 <b>มีคำขอจองห้องประชุมใหม่" + (dates.length > 1 ? " (จองซ้ำ " + dates.length + " ครั้ง)" : "") + "!</b>\n\n"
       + "👤 ผู้จอง : " + formData.requester_name + "\n"
       + "📍 ห้อง   : " + formData.room + "\n"
-      + "📅 วันที่  : " + formData.date + "\n"
+      + "📅 วันที่  : " + dateLine + "\n"
       + "⏰ เวลา   : " + formData.start_time + " – " + formData.end_time + " น.\n"
       + "📌 เรื่อง  : " + formData.project_name + "\n"
       + "👥 จำนวน  : " + formData.participants + " คน\n"
-      + "🍱 รายการ : " + (eq.join(", ") || "-") + "\n"
+      + "🥤 น้ำดื่ม : " + (eq.join(", ") || "-") + "\n"
       + "📧 อีเมล  : " + (formData.email || "-") + "\n\n"
       + "กรุณาเข้าหน้า Admin เพื่อพิจารณา";
     sendTelegramNotification_(msg, TELEGRAM_CHAT_ID);
 
-    return { success: true, message: "🎉 บันทึกการจองห้องประชุมเรียบร้อยแล้ว! กรุณารอการอนุมัติจากผู้ดูแลระบบ" };
+    return {
+      success: true,
+      message: dates.length > 1
+        ? "🎉 บันทึกการจองห้องประชุมแบบซ้ำเรียบร้อยแล้ว (" + dates.length + " ครั้ง)! กรุณารอการอนุมัติจากผู้ดูแลระบบ"
+        : "🎉 บันทึกการจองห้องประชุมเรียบร้อยแล้ว! กรุณารอการอนุมัติจากผู้ดูแลระบบ"
+    };
   } catch (err) {
     return { success: false, message: "เกิดข้อผิดพลาด: " + err.toString() };
   }
