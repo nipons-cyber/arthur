@@ -235,9 +235,17 @@
           <label for="room">ชื่อห้องที่ต้องการจอง <span class="req">*</span></label>
           <select id="room" name="room" required onchange="onRoomChange()">
             <option value="">— เลือกห้องประชุม —</option>
+            <? var currentFloor = null; ?>
             <? for (var ri = 0; ri < ROOMS.length; ri++) { ?>
-            <option value="<?= ROOMS[ri].name ?>" data-seats="<?= ROOMS[ri].seats ?>"><?= ROOMS[ri].name ?></option>
+              <? var r = ROOMS[ri]; ?>
+              <? if (r.floor !== currentFloor) { ?>
+                <? if (currentFloor !== null) { ?></optgroup><? } ?>
+                <? currentFloor = r.floor; ?>
+                <optgroup label="ชั้น <?= currentFloor ?>">
+              <? } ?>
+              <option value="<?= r.name ?>" data-seats="<?= r.seats ?>"<?= r.locked ? " disabled" : "" ?>><?= r.name ?><?= r.locked ? " (ปิดใช้งานชั่วคราว)" : "" ?></option>
             <? } ?>
+            <? if (currentFloor !== null) { ?></optgroup><? } ?>
           </select>
         </div>
         <div class="form-group">

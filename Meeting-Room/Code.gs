@@ -5,23 +5,27 @@
 const SPREADSHEET_ID      = "xxxxxxxxxxxxxxxxxxxxxxxx"; // ไอดีชีต
 const SHEET_NAME          = "Reservations";
 
-// ─── รายชื่อห้องประชุม + จำนวนที่นั่ง ───────────────────────
-// หมายเหตุ: index.html ดึงรายการนี้มาสร้าง <select> โดยตรงผ่าน HTML template
-// scriptlet (<? ROOMS ?>) เพื่อให้ฝั่ง client กับ server ใช้ข้อมูลชุดเดียวกันเสมอ
+// ─── รายชื่อห้องประชุม + ชั้น + จำนวนที่นั่ง ───────────────────
+// หมายเหตุ: index.html ดึงรายการนี้มาสร้าง <select> (จัดกลุ่มตามชั้นด้วย
+// <optgroup>) โดยตรงผ่าน HTML template scriptlet เพื่อให้ฝั่ง client กับ
+// server ใช้ข้อมูลชุดเดียวกันเสมอ
+// locked: true = ห้องปิดใช้งานชั่วคราว โชว์ในรายการแต่เลือกจองไม่ได้
+// (index.html ใส่ disabled ให้ที่ <option>, saveReservation เช็คซ้ำฝั่ง
+// เซิร์ฟเวอร์ด้วยกันกรณีมีคนพยายามส่งชื่อห้องที่ล็อกไว้เข้ามาตรงๆ)
 const ROOMS = [
-  { name: "Stark 1",          seats: 6  },
-  { name: "Maverick 2",       seats: 18 },
-  { name: "Gump 3",           seats: 40 },
-  { name: "Sherlock 4",       seats: 18 },
-  { name: "Wayne 5",          seats: 6  },
-  { name: "Thor 6",           seats: 6  },
-  { name: "Hermione 7",       seats: 6  },
-  { name: "Yoda 8",           seats: 30 },
-  { name: "Platform 9-3/4",   seats: 8  },
-  { name: "Natasha 10",       seats: 8  },
-  { name: "Dumbledore 11",    seats: 18 },
-  { name: "Hulk 12",          seats: 6  },
-  { name: "Parker 13",        seats: 4  }
+  { name: "Stark 1",          seats: 6,  floor: 1, locked: true  },
+  { name: "Maverick 2",       seats: 18, floor: 1, locked: false },
+  { name: "Gump 3",           seats: 40, floor: 1, locked: true  },
+  { name: "Sherlock 4",       seats: 18, floor: 2, locked: false },
+  { name: "Wayne 5",          seats: 6,  floor: 2, locked: false },
+  { name: "Thor 6",           seats: 6,  floor: 3, locked: false },
+  { name: "Hermione 7",       seats: 6,  floor: 3, locked: false },
+  { name: "Yoda 8",           seats: 30, floor: 3, locked: true  },
+  { name: "Platform 9-3/4",   seats: 8,  floor: 3, locked: true  },
+  { name: "Natasha 10",       seats: 8,  floor: 3, locked: true  },
+  { name: "Dumbledore 11",    seats: 18, floor: 3, locked: true  },
+  { name: "Hulk 12",          seats: 6,  floor: 4, locked: true  },
+  { name: "Parker 13",        seats: 4,  floor: 4, locked: true  }
 ];
 
 const REPEAT_FREQUENCIES = ["daily", "weekly", "monthly"];
@@ -796,6 +800,9 @@ function saveReservation(formData) {
     var room = findRoom_(formData.room);
     if (!room) {
       return { success: false, message: "⚠️ ไม่พบห้องประชุมที่เลือก กรุณาเลือกห้องจากรายการ" };
+    }
+    if (room.locked) {
+      return { success: false, message: "⚠️ ห้อง " + room.name + " ปิดใช้งานชั่วคราว ไม่สามารถจองได้" };
     }
 
     var qty = parseInt(formData.participants, 10) || 0;
