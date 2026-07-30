@@ -30,10 +30,13 @@ const STATUS_APPROVED  = "อนุมัติ";
 const STATUS_REJECTED  = "ปฏิเสธ";
 const STATUS_CANCELLED = "ยกเลิก";
 
-// ─── ตั้งค่า Telegram ───────────────────────────────────────
-const TELEGRAM_BOT_TOKEN       = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx";        // ใส่ token จาก @BotFather
-const TELEGRAM_CHAT_ID         = "xxxxxxxxxxxxxxxxx";          // ใส่ chat_id ของ admin (แจ้งเตือนตอนมีการจองใหม่)
-const TELEGRAM_MAEBAAN_CHAT_ID = "xxxxxxxxxxxxx";   // ใส่ chat_id ของแม่บ้าน (แจ้งเตือนตอนอนุมัติแล้ว ให้เตรียมของ/พิมพ์ PDF)
+// ─── ตั้งค่า LINE (Messaging API) ─────────────────────────────
+// สร้าง LINE Official Account + Messaging API Channel ได้ฟรีที่
+// https://developers.line.biz แล้วนำ "Channel access token" มาใส่ด้านล่าง
+const LINE_CHANNEL_ACCESS_TOKEN = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; // Messaging API > Channel access token
+const LINE_ADMIN_TARGET_ID      = "xxxxxxxxxxxxxxxxx";             // userId หรือ groupId ของ admin (แจ้งเตือนตอนมีการจองใหม่)
+const LINE_MAEBAAN_TARGET_ID    = "xxxxxxxxxxxxx";                 // userId หรือ groupId ของแม่บ้าน (แจ้งเตือนตอนอนุมัติแล้ว ให้เตรียมของ/พิมพ์ PDF)
+// วิธีหา userId/groupId: ดูคอมเมนต์ที่ฟังก์ชัน doPost ด้านล่าง
 
 // ─── ตั้งค่า Admin Password ─────────────────────────────────
 const ADMIN_PASSWORD = "admin1234";  // เปลี่ยนตามต้องการ
@@ -45,7 +48,14 @@ const MAIL_SENDER_NAME = "ระบบจองห้องประชุม";
 //  Web App Entry Point
 // ------------------------------------------------------------
 function doGet(e) {
-  const page = e && e.parameter && e.parameter.page;
+  const params = (e && e.parameter) || {};
+  const page   = params.page;
+  const action = params.action;
+
+  // ปุ่มอนุมัติ/ปฏิเสธด่วนในข้อความ LINE (ไม่ต้อง login เข้าหน้า Admin)
+  if (action === 'approve' || action === 'reject') {
+    return handleQuickAction_(params);
+  }
 
   let html;
 
@@ -62,6 +72,102 @@ function doGet(e) {
   return html
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag("viewport", "width=device-width, initial-scale=1.0, maximum-scale=1.0");
+}
+
+// ------------------------------------------------------------
+//  doPost — รับ webhook event จาก LINE
+//  ใช้หลักๆ เพื่อหา userId/groupId ของ admin/แม่บ้านตอนตั้งค่าครั้งแรก
+//  (ปุ่มอนุมัติ/ปฏิเสธในข้อความเป็นลิงก์ธรรมดา ไม่ใช่ postback จึงไม่ต้องพึ่ง
+//  webhook ตอนใช้งานจริง แต่ต้องเปิด webhook ไว้ตอนหา ID และให้ verify ผ่าน)
+//
+//  วิธีหา userId/groupId:
+//  1) Deploy เว็บแอปนี้ แล้วนำ URL ที่ลงท้าย /exec ไปตั้งเป็น Webhook URL ที่
+//     LINE Developers Console > Messaging API > Webhook settings
+//     เปิด "Use webhook" แล้วกด Verify ให้ขึ้นสำเร็จ
+//  2) เพิ่มบอทเป็นเพื่อน (สแกน QR ใน Console) แล้วพิมพ์ข้อความอะไรก็ได้ไปหาบอท
+//     — ถ้าจะเอา groupId ให้เชิญบอทเข้ากลุ่มแล้วพิมพ์ข้อความในกลุ่มนั้นแทน
+//  3) เปิด Apps Script > Executions ดู log ของ doPost จะเห็น userId/groupId
+//     คัดลอกไปใส่ LINE_ADMIN_TARGET_ID หรือ LINE_MAEBAAN_TARGET_ID
+// ------------------------------------------------------------
+function doPost(e) {
+  try {
+    var body = JSON.parse(e.postData.contents);
+    (body.events || []).forEach(function(event) {
+      var source = event.source || {};
+      Logger.log("LINE event: type=" + event.type
+        + " userId=" + (source.userId || "-")
+        + " groupId=" + (source.groupId || "-")
+        + " roomId=" + (source.roomId || "-"));
+    });
+  } catch (parseErr) {
+    Logger.log("doPost parse error: " + parseErr);
+  }
+  return ContentService.createTextOutput(JSON.stringify({ status: "ok" }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ------------------------------------------------------------
+//  handleQuickAction_ — ประมวลผลปุ่มอนุมัติ/ปฏิเสธด่วนจากข้อความ LINE
+//  ตรวจสอบ id + token (สุ่มต่อรายการตอนบันทึกการจอง) แทนรหัสผ่าน Admin
+//  token เดายากและใช้ได้แค่ครั้งเดียว (สถานะเปลี่ยนแล้วลิงก์จะใช้ซ้ำไม่ได้)
+// ------------------------------------------------------------
+function handleQuickAction_(params) {
+  var id     = parseInt(params.id, 10);
+  var token  = (params.token || "").toString();
+  var action = params.action;
+
+  if (isNaN(id) || !token || (action !== 'approve' && action !== 'reject')) {
+    return quickActionPage_("ลิงก์ไม่ถูกต้อง", "พารามิเตอร์ของลิงก์ไม่ครบถ้วน", false);
+  }
+
+  var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);
+  var realRow = id + 1;
+  if (realRow < 2 || realRow > sheet.getLastRow()) {
+    return quickActionPage_("ไม่พบรายการจองนี้", "รายการอาจถูกลบหรือลิงก์ไม่ถูกต้อง", false);
+  }
+
+  var row = sheet.getRange(realRow, 1, 1, 15).getValues()[0];
+  var storedToken = (row[14] || "").toString();
+  if (!storedToken || storedToken !== token) {
+    return quickActionPage_("ลิงก์ไม่ถูกต้องหรือหมดอายุ", "กรุณาเข้าไปดำเนินการผ่านหน้า Admin แทน", false);
+  }
+
+  var status = (row[12] || STATUS_PENDING).toString();
+  if (status !== STATUS_PENDING) {
+    return quickActionPage_("รายการนี้ถูกดำเนินการไปแล้ว", "สถานะปัจจุบัน: " + status, false);
+  }
+
+  var result = (action === 'approve')
+    ? approveReservation(ADMIN_PASSWORD, id)
+    : rejectReservation(ADMIN_PASSWORD, id, "ปฏิเสธผ่านปุ่มด่วนจาก LINE");
+
+  var title = action === 'approve' ? "✅ อนุมัติเรียบร้อยแล้ว" : "❌ บันทึกการปฏิเสธแล้ว";
+  return quickActionPage_(title, result.message, true);
+}
+
+// ------------------------------------------------------------
+//  quickActionPage_ — หน้ายืนยันผลแบบง่ายๆ หลังกดปุ่มอนุมัติ/ปฏิเสธด่วน
+// ------------------------------------------------------------
+function quickActionPage_(title, message, success) {
+  var color = success ? "#16a34a" : "#dc2626";
+  var icon  = success ? "✅" : "⚠️";
+  var html =
+    '<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+    '<title>' + title + '</title>' +
+    '<style>' +
+      'body{font-family:Tahoma,Arial,sans-serif;background:#f1f5f9;display:flex;' +
+        'align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px;box-sizing:border-box;}' +
+      '.box{background:#fff;border-radius:16px;padding:36px 32px;max-width:420px;width:100%;' +
+        'text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.08);}' +
+      '.icon{font-size:48px;margin-bottom:12px;}' +
+      'h1{font-size:20px;color:' + color + ';margin:0 0 10px;}' +
+      'p{color:#475569;font-size:14px;line-height:1.7;margin:0;}' +
+    '</style></head><body>' +
+    '<div class="box"><div class="icon">' + icon + '</div><h1>' + title + '</h1><p>' + (message || "") + '</p></div>' +
+    '</body></html>';
+  return HtmlService.createHtmlOutput(html)
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 // ------------------------------------------------------------
@@ -375,25 +481,27 @@ function approveReservation(password, rowId) {
     start: start, end: end, project: project, qty: qty
   });
 
-  // ─ แจ้งเตือน Telegram (ระยะที่ 2) : แจ้งแม่บ้านให้เตรียมของ + พร้อมพิมพ์ PDF ─
+  // ─ แจ้งเตือน LINE (ระยะที่ 2) : แจ้งแม่บ้านให้เตรียมของ + พร้อมพิมพ์ PDF ─
   var baseUrl = "";
   try { baseUrl = ScriptApp.getService().getUrl(); } catch (e) { baseUrl = ""; }
 
-  var maidMsg = "🧺 <b>การจองห้องประชุมได้รับการอนุมัติแล้ว — กรุณาเตรียมการ</b>\n\n"
-    + "📍 ห้อง    : " + room + "\n"
-    + "📅 วันที่   : " + formatDateThaiLong_(date) + "\n"
-    + "⏰ เวลา    : " + start + " – " + end + " น.\n"
-    + "📌 เรื่อง   : " + project + "\n"
-    + "👤 ผู้จอง   : " + name + " (" + position + ")\n"
-    + "☎️ โทร     : " + phone + "\n"
-    + "👥 จำนวน   : " + qty + " คน\n"
-    + "🥤 น้ำดื่ม  : " + (equipment || "-") + "\n\n"
-    + "กรุณาเตรียมสถานที่และน้ำดื่มตามรายการข้างต้น พร้อมเข้าเว็บระบบเพื่อพิมพ์เอกสาร PDF ยืนยันการจอง (แท็บ \"ปฏิทิน & ประวัติการจอง\")"
-    + (baseUrl ? "\n🔗 " + baseUrl : "");
+  var maidLines = [
+    "📍 ห้อง: " + room,
+    "📅 วันที่: " + formatDateThaiLong_(date),
+    "⏰ เวลา: " + start + " – " + end + " น.",
+    "📌 เรื่อง: " + project,
+    "👤 ผู้จอง: " + name + " (" + position + ")",
+    "☎️ โทร: " + phone,
+    "👥 จำนวน: " + qty + " คน",
+    "🥤 น้ำดื่ม: " + (equipment || "-"),
+    "กรุณาเตรียมสถานที่และน้ำดื่มตามรายการข้างต้น พร้อมเข้าเว็บระบบเพื่อพิมพ์เอกสาร PDF ยืนยันการจอง (แท็บ \"ปฏิทิน & ประวัติการจอง\")"
+  ];
+  if (baseUrl) maidLines.push("🔗 " + baseUrl);
 
-  var maidSent = sendTelegramNotification_(maidMsg, TELEGRAM_MAEBAAN_CHAT_ID);
+  var maidMsg = buildFlexNoticeMessage_("🧺 การจองห้องประชุมได้รับการอนุมัติแล้ว — กรุณาเตรียมการ", maidLines);
+  var maidSent = sendLineMessage_(LINE_MAEBAAN_TARGET_ID, [maidMsg]);
   if (!maidSent) {
-    Logger.log("⚠️ แจ้งเตือนแม่บ้านไม่สำเร็จสำหรับแถว " + rowId + " — ดู log ด้านบนสำหรับรายละเอียด error จาก Telegram");
+    Logger.log("⚠️ แจ้งเตือนแม่บ้านไม่สำเร็จสำหรับแถว " + rowId + " — ดู log ด้านบนสำหรับรายละเอียด error จาก LINE");
   }
 
   return {
@@ -564,15 +672,17 @@ function cancelReservationByRequester(id, email) {
   });
 
   // แจ้งเตือน admin (และแม่บ้านถ้าอนุมัติไปแล้ว) เผื่อกำลังเตรียมของอยู่
-  var msg = "🚫 <b>ผู้จองยกเลิกการจองด้วยตัวเอง</b>\n\n"
-    + "👤 ผู้จอง : " + name + "\n"
-    + "📍 ห้อง   : " + room + "\n"
-    + "📅 วันที่  : " + formatDateThaiLong_(date) + "\n"
-    + "⏰ เวลา   : " + start + " – " + end + " น.\n"
-    + "📌 เรื่อง  : " + project;
-  sendTelegramNotification_(msg, TELEGRAM_CHAT_ID);
+  var cancelLines = [
+    "👤 ผู้จอง: " + name,
+    "📍 ห้อง: " + room,
+    "📅 วันที่: " + formatDateThaiLong_(date),
+    "⏰ เวลา: " + start + " – " + end + " น.",
+    "📌 เรื่อง: " + project
+  ];
+  var cancelMsg = buildFlexNoticeMessage_("🚫 ผู้จองยกเลิกการจองด้วยตัวเอง", cancelLines);
+  sendLineMessage_(LINE_ADMIN_TARGET_ID, [cancelMsg]);
   if (status === STATUS_APPROVED) {
-    sendTelegramNotification_(msg, TELEGRAM_MAEBAAN_CHAT_ID);
+    sendLineMessage_(LINE_MAEBAAN_TARGET_ID, [cancelMsg]);
   }
 
   return { success: true, message: "ยกเลิกการจองเรียบร้อยแล้ว" };
@@ -591,65 +701,97 @@ function getSignatureBase64(url) {
 }
 
 // ------------------------------------------------------------
-//  sendTelegramNotification_ — ส่งข้อความแจ้งเตือนไปยัง chat ที่ระบุ
-//  chatId: ถ้าไม่ระบุ จะใช้ TELEGRAM_CHAT_ID (admin) เป็นค่าเริ่มต้น
-//  คืนค่า true/false บอกผลว่าส่งสำเร็จจริงหรือไม่ (เช็คจาก response ของ Telegram)
-//  พร้อม log รายละเอียด error ให้เห็นสาเหตุจริงเมื่อส่งไม่สำเร็จ
+//  sendLineMessage_ — push ข้อความ (array ของ LINE message object) ไปยัง
+//  userId/groupId ที่ระบุ ผ่าน LINE Messaging API
+//  คืนค่า true/false บอกผลว่าส่งสำเร็จจริงหรือไม่ พร้อม log รายละเอียด
+//  error ให้เห็นสาเหตุจริงเมื่อส่งไม่สำเร็จ
 // ------------------------------------------------------------
-function sendTelegramNotification_(text, chatId) {
+function sendLineMessage_(targetId, messages) {
   try {
-    var targetChatId = chatId || TELEGRAM_CHAT_ID;
-    if (!targetChatId) {
-      Logger.log("sendTelegramNotification_: ไม่มี chat_id ปลายทาง ข้ามการส่ง");
+    if (!targetId) {
+      Logger.log("sendLineMessage_: ไม่มี userId/groupId ปลายทาง ข้ามการส่ง");
       return false;
     }
-    var url = "https://api.telegram.org/bot" + TELEGRAM_BOT_TOKEN + "/sendMessage";
-    var payload = { chat_id: targetChatId, text: text, parse_mode: "HTML" };
-    var response = UrlFetchApp.fetch(url, {
+    if (!LINE_CHANNEL_ACCESS_TOKEN) {
+      Logger.log("sendLineMessage_: ยังไม่ได้ตั้งค่า LINE_CHANNEL_ACCESS_TOKEN");
+      return false;
+    }
+    var response = UrlFetchApp.fetch("https://api.line.me/v2/bot/message/push", {
       method: "post",
       contentType: "application/json",
-      payload: JSON.stringify(payload),
-      muteHttpExceptions: true   // ไม่ throw exception แต่เราจะเช็ค response เองด้านล่าง
+      headers: { Authorization: "Bearer " + LINE_CHANNEL_ACCESS_TOKEN },
+      payload: JSON.stringify({ to: targetId, messages: messages }),
+      muteHttpExceptions: true
     });
 
     var code = response.getResponseCode();
-    var body = response.getContentText();
-
     if (code !== 200) {
-      // ★ ตรงนี้คือส่วนที่ขาดไปก่อนหน้านี้ — ทำให้มองไม่เห็นสาเหตุที่แม่บ้านไม่ได้รับแจ้งเตือน
-      Logger.log("sendTelegramNotification_ FAILED chat_id=" + targetChatId
-        + " httpCode=" + code + " response=" + body);
+      Logger.log("sendLineMessage_ FAILED to=" + targetId
+        + " httpCode=" + code + " response=" + response.getContentText());
       return false;
     }
 
-    Logger.log("sendTelegramNotification_ ส่งสำเร็จไปยัง chat_id=" + targetChatId);
+    Logger.log("sendLineMessage_ ส่งสำเร็จไปยัง " + targetId);
     return true;
 
-  } catch(e) {
-    Logger.log("Telegram error: " + e);
+  } catch (e) {
+    Logger.log("LINE error: " + e);
     return false;
   }
 }
 
-// ------------------------------------------------------------
-//  testTelegramMaebaan — ฟังก์ชันทดสอบ (ไม่เกี่ยวกับระบบจอง)
-//  ใช้สำหรับดีบักโดยเฉพาะ: เปิด Apps Script editor แล้วเลือกรัน
-//  ฟังก์ชันนี้ (Run > testTelegramMaebaan) จากนั้นดู Execution log
-//  (View > Logs หรือ Ctrl+Enter) จะเห็น error จริงจาก Telegram เช่น
-//  - "Bad Request: chat not found" → chat_id ผิด หรือบอทไม่เคยถูกเพิ่มเข้ากลุ่มนี้
-//  - "Forbidden: bot was kicked from the group chat" → บอทถูกเตะออกจากกลุ่ม
-//  - "Bad Request: group chat was upgraded to a supergroup chat"
-//      → กลุ่มถูกอัปเกรดเป็น Supergroup แล้ว ID เปลี่ยนไปเป็นรูปแบบ
-//        -100xxxxxxxxxx ต้องนำ migrate_to_chat_id ใน response ไปตั้งเป็น
-//        TELEGRAM_MAEBAAN_CHAT_ID ตัวใหม่
-// ------------------------------------------------------------
-function testTelegramMaebaan() {
-  var ok = sendTelegramNotification_("🔧 ทดสอบการแจ้งเตือนไปยังกลุ่มแม่บ้าน (ลบข้อความนี้ทิ้งได้)", TELEGRAM_MAEBAAN_CHAT_ID);
-  Logger.log("ผลการทดสอบส่งไปยังกลุ่มแม่บ้าน: " + (ok ? "✅ สำเร็จ" : "❌ ไม่สำเร็จ — ดู log ด้านบนเพื่อดูสาเหตุจาก Telegram"));
+function sendLineTextMessage_(targetId, text) {
+  return sendLineMessage_(targetId, [{ type: "text", text: text }]);
 }
 
 // ------------------------------------------------------------
-//  saveReservation — บันทึกพร้อมส่ง Telegram (ระยะที่ 1 แจ้ง admin)
+//  buildFlexNoticeMessage_ — สร้าง LINE Flex Message (การ์ดแจ้งเตือน)
+//  lines: array ของบรรทัดข้อความ (string ธรรมดา)
+//  approveUrl/rejectUrl: ถ้ามีทั้งคู่ จะมีปุ่ม "อนุมัติ/ปฏิเสธ" ต่อท้าย
+// ------------------------------------------------------------
+function buildFlexNoticeMessage_(title, lines, approveUrl, rejectUrl) {
+  var bubble = {
+    type: "bubble",
+    header: {
+      type: "box", layout: "vertical", backgroundColor: "#4f46e5", paddingAll: "16px",
+      contents: [{ type: "text", text: title, weight: "bold", size: "md", color: "#ffffff", wrap: true }]
+    },
+    body: {
+      type: "box", layout: "vertical", spacing: "sm", paddingAll: "16px",
+      contents: lines.map(function(t) {
+        return { type: "text", text: t, size: "sm", color: "#334155", wrap: true };
+      })
+    }
+  };
+
+  if (approveUrl && rejectUrl) {
+    bubble.footer = {
+      type: "box", layout: "horizontal", spacing: "sm", paddingAll: "12px",
+      contents: [
+        { type: "button", style: "primary", color: "#16a34a", height: "sm",
+          action: { type: "uri", label: "อนุมัติ", uri: approveUrl } },
+        { type: "button", style: "primary", color: "#dc2626", height: "sm",
+          action: { type: "uri", label: "ปฏิเสธ", uri: rejectUrl } }
+      ]
+    };
+  }
+
+  return { type: "flex", altText: title.substring(0, 400), contents: bubble };
+}
+
+// ------------------------------------------------------------
+//  testLineMaebaan — ฟังก์ชันทดสอบ (ไม่เกี่ยวกับระบบจอง)
+//  ใช้สำหรับดีบักโดยเฉพาะ: เปิด Apps Script editor แล้วเลือกรันฟังก์ชันนี้
+//  (Run > testLineMaebaan) จากนั้นดู Execution log (View > Logs) จะเห็น
+//  error จริงจาก LINE ถ้าส่งไม่สำเร็จ (เช่น target ผิด, token หมดอายุ)
+// ------------------------------------------------------------
+function testLineMaebaan() {
+  var ok = sendLineTextMessage_(LINE_MAEBAAN_TARGET_ID, "🔧 ทดสอบการแจ้งเตือนไปยังแม่บ้าน (ลบข้อความนี้ทิ้งได้)");
+  Logger.log("ผลการทดสอบส่งไปยังแม่บ้าน: " + (ok ? "✅ สำเร็จ" : "❌ ไม่สำเร็จ — ดู log ด้านบนเพื่อดูสาเหตุจาก LINE"));
+}
+
+// ------------------------------------------------------------
+//  saveReservation — บันทึกพร้อมส่ง LINE (ระยะที่ 1 แจ้ง admin)
 // ------------------------------------------------------------
 function saveReservation(formData) {
   try {
@@ -714,8 +856,11 @@ function saveReservation(formData) {
     var groupId = (isRepeat && dates.length > 1) ? ("RG-" + Utilities.getUuid()) : "";
 
     // column: A=date, B=room, C=start, D=end, E=project, F=qty, G=equipment,
-    //         H=name, I=position, J=phone, K=signatureUrl, L=email, M=status, N=repeatGroupId
+    //         H=name, I=position, J=phone, K=signatureUrl, L=email, M=status,
+    //         N=repeatGroupId, O=approvalToken (สำหรับปุ่มอนุมัติ/ปฏิเสธด่วนใน LINE)
+    var insertedRows = []; // { id, token }
     dates.forEach(function(dateStr) {
+      var token = Utilities.getUuid();
       sheet.appendRow([
         dateStr,
         formData.room,
@@ -732,23 +877,43 @@ function saveReservation(formData) {
         STATUS_PENDING,          // ← column M
         groupId                  // ← column N
       ]);
+      var newRow = sheet.getLastRow();
+      sheet.getRange(newRow, 15).setValue(token); // ← column O
+      insertedRows.push({ id: newRow - 1, token: token });
     });
 
-    // ─ แจ้ง Telegram (ระยะที่ 1) : แจ้ง admin ว่ามีคำขอจองใหม่ ─
+    // ปุ่มอนุมัติ/ปฏิเสธด่วน — ใส่ให้เฉพาะการจองแบบเดี่ยว (ไม่ใช่จองซ้ำ)
+    // เพราะจองซ้ำมีหลายแถว/หลายโทเค็น ต้องพิจารณาทีละรายการผ่านหน้า Admin แทน
+    var approveUrl = "", rejectUrl = "";
+    if (insertedRows.length === 1) {
+      var baseUrl = "";
+      try { baseUrl = ScriptApp.getService().getUrl(); } catch (e) { baseUrl = ""; }
+      if (baseUrl) {
+        var r0 = insertedRows[0];
+        approveUrl = baseUrl + "?action=approve&id=" + r0.id + "&token=" + r0.token;
+        rejectUrl  = baseUrl + "?action=reject&id="  + r0.id + "&token=" + r0.token;
+      }
+    }
+
+    // ─ แจ้ง LINE (ระยะที่ 1) : แจ้ง admin ว่ามีคำขอจองใหม่ ─
     var dateLine = dates.length > 1
       ? dates.map(function(x) { return formatDateThaiLong_(x); }).join(", ")
       : formData.date;
-    var msg = "🔔 <b>มีคำขอจองห้องประชุมใหม่" + (dates.length > 1 ? " (จองซ้ำ " + dates.length + " ครั้ง)" : "") + "!</b>\n\n"
-      + "👤 ผู้จอง : " + formData.requester_name + "\n"
-      + "📍 ห้อง   : " + formData.room + "\n"
-      + "📅 วันที่  : " + dateLine + "\n"
-      + "⏰ เวลา   : " + formData.start_time + " – " + formData.end_time + " น.\n"
-      + "📌 เรื่อง  : " + formData.project_name + "\n"
-      + "👥 จำนวน  : " + formData.participants + " คน\n"
-      + "🥤 น้ำดื่ม : " + (eq.join(", ") || "-") + "\n"
-      + "📧 อีเมล  : " + (formData.email || "-") + "\n\n"
-      + "กรุณาเข้าหน้า Admin เพื่อพิจารณา";
-    sendTelegramNotification_(msg, TELEGRAM_CHAT_ID);
+    var bookingLines = [
+      "👤 ผู้จอง: " + formData.requester_name,
+      "📍 ห้อง: " + formData.room,
+      "📅 วันที่: " + dateLine,
+      "⏰ เวลา: " + formData.start_time + " – " + formData.end_time + " น.",
+      "📌 เรื่อง: " + formData.project_name,
+      "👥 จำนวน: " + formData.participants + " คน",
+      "🥤 น้ำดื่ม: " + (eq.join(", ") || "-"),
+      "📧 อีเมล: " + (formData.email || "-")
+    ];
+    if (dates.length > 1) bookingLines.push("⚠️ จองซ้ำ กรุณาพิจารณาทีละรายการผ่านหน้า Admin");
+
+    var bookingTitle = "🔔 คำขอจองห้องประชุมใหม่" + (dates.length > 1 ? " (จองซ้ำ " + dates.length + " ครั้ง)" : "");
+    var bookingMsg = buildFlexNoticeMessage_(bookingTitle, bookingLines, approveUrl, rejectUrl);
+    sendLineMessage_(LINE_ADMIN_TARGET_ID, [bookingMsg]);
 
     return {
       success: true,
@@ -761,40 +926,7 @@ function saveReservation(formData) {
   }
 }
 
-
-
-// ------------------------------------------------------------
-//  getTelegramUpdates — ตัวช่วยหา chat_id ที่ถูกต้องของกลุ่มแม่บ้าน
-//  วิธีใช้:
-//  1) เพิ่มบอทเข้ากลุ่มแม่บ้าน แล้วพิมพ์ข้อความอะไรก็ได้ในกลุ่มนั้น (เช่น "test")
-//  2) เปิด Apps Script editor แล้วเลือกรันฟังก์ชันนี้ (Run > getTelegramUpdates)
-//  3) ดู Logger log จะเห็น chat.id จริงของทุกแชทที่บอทเห็นข้อความล่าสุด
-//     คัดลอกค่านั้น (รวมเครื่องหมายลบ) ไปใส่ TELEGRAM_MAEBAAN_CHAT_ID
-// ------------------------------------------------------------
-function getTelegramUpdates() {
-  try {
-    var url = "https://api.telegram.org/bot" + TELEGRAM_BOT_TOKEN + "/getUpdates";
-    var response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-    var data = JSON.parse(response.getContentText());
-    if (!data.ok) {
-      Logger.log("getUpdates error: " + response.getContentText());
-      return;
-    }
-    if (!data.result.length) {
-      Logger.log("ไม่พบ update ล่าสุด — กรุณาส่งข้อความในกลุ่มเป้าหมายก่อน แล้วรันใหม่ภายใน 24 ชม.");
-      return;
-    }
-    data.result.forEach(function (u) {
-      var chat = (u.message && u.message.chat) || (u.my_chat_member && u.my_chat_member.chat);
-      if (chat) {
-        Logger.log("chat.id = " + chat.id + " | type = " + chat.type + " | ชื่อ = " + (chat.title || chat.first_name || ""));
-      }
-    });
-  } catch (e) {
-    Logger.log("getTelegramUpdates error: " + e);
-  }
-}
-
+// (หา userId/groupId ของ LINE ได้จากคอมเมนต์เหนือฟังก์ชัน doPost ด้านบนแทน)
 
 
 
@@ -815,7 +947,7 @@ function getTelegramUpdates() {
 
 function forceAuthorize() {
   SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);
-  UrlFetchApp.fetch("https://api.telegram.org");
+  UrlFetchApp.fetch("https://api.line.me");
   MailApp.getRemainingDailyQuota();
   Logger.log('Authorization complete');
 }
