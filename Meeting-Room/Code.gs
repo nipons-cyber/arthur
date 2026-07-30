@@ -34,9 +34,8 @@ const STATUS_CANCELLED = "ยกเลิก";
 // สร้าง LINE Official Account + Messaging API Channel ได้ฟรีที่
 // https://developers.line.biz แล้วนำ "Channel access token" มาใส่ด้านล่าง
 const LINE_CHANNEL_ACCESS_TOKEN = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; // Messaging API > Channel access token
-const LINE_ADMIN_TARGET_ID      = "xxxxxxxxxxxxxxxxx";             // userId หรือ groupId ของ admin (แจ้งเตือนตอนมีการจองใหม่)
-const LINE_MAEBAAN_TARGET_ID    = "xxxxxxxxxxxxx";                 // userId หรือ groupId ของแม่บ้าน (แจ้งเตือนตอนอนุมัติแล้ว ให้เตรียมของ/พิมพ์ PDF)
-// วิธีหา userId/groupId: ดูคอมเมนต์ที่ฟังก์ชัน doPost ด้านล่าง
+const LINE_TARGET_ID            = "xxxxxxxxxxxxxxxxx";             // userId ของผู้รับแจ้งเตือนทั้งหมด (จองใหม่+ปุ่มอนุมัติ, แจ้งเตรียมของ, แจ้งยกเลิก)
+// วิธีหา userId: ดูคอมเมนต์ที่ฟังก์ชัน doPost ด้านล่าง
 
 // ─── ตั้งค่า Admin Password ─────────────────────────────────
 const ADMIN_PASSWORD = "admin1234";  // เปลี่ยนตามต้องการ
@@ -76,18 +75,20 @@ function doGet(e) {
 
 // ------------------------------------------------------------
 //  doPost — รับ webhook event จาก LINE
-//  ใช้หลักๆ เพื่อหา userId/groupId ของ admin/แม่บ้านตอนตั้งค่าครั้งแรก
+//  ใช้หลักๆ เพื่อหา userId ของผู้รับแจ้งเตือนตอนตั้งค่าครั้งแรก
 //  (ปุ่มอนุมัติ/ปฏิเสธในข้อความเป็นลิงก์ธรรมดา ไม่ใช่ postback จึงไม่ต้องพึ่ง
-//  webhook ตอนใช้งานจริง แต่ต้องเปิด webhook ไว้ตอนหา ID และให้ verify ผ่าน)
+//  webhook ตอนใช้งานจริง — ใช้ webhook แค่ตอนหา userId เท่านั้น)
 //
-//  วิธีหา userId/groupId:
-//  1) Deploy เว็บแอปนี้ แล้วนำ URL ที่ลงท้าย /exec ไปตั้งเป็น Webhook URL ที่
-//     LINE Developers Console > Messaging API > Webhook settings
-//     เปิด "Use webhook" แล้วกด Verify ให้ขึ้นสำเร็จ
-//  2) เพิ่มบอทเป็นเพื่อน (สแกน QR ใน Console) แล้วพิมพ์ข้อความอะไรก็ได้ไปหาบอท
-//     — ถ้าจะเอา groupId ให้เชิญบอทเข้ากลุ่มแล้วพิมพ์ข้อความในกลุ่มนั้นแทน
-//  3) เปิด Apps Script > Executions ดู log ของ doPost จะเห็น userId/groupId
-//     คัดลอกไปใส่ LINE_ADMIN_TARGET_ID หรือ LINE_MAEBAAN_TARGET_ID
+//  วิธีหา userId (แนะนำใช้ https://webhook.site ชั่วคราวแทน เพราะ Apps
+//  Script Web App มักติดปัญหา redirect ทำให้ LINE กด Verify ไม่ผ่าน):
+//  1) ตั้ง Webhook URL ชั่วคราวเป็น URL จาก webhook.site แล้วกด Verify (ผ่านทันที)
+//  2) เปิด "Use webhook" แล้วเพิ่มบอทเป็นเพื่อน (สแกน QR ใน Console) พิมพ์
+//     ข้อความอะไรก็ได้ไปหาบอท
+//  3) รีเฟรชหน้า webhook.site จะเห็น JSON ที่ LINE ส่งมา หา
+//     events[0].source.userId คัดลอกไปใส่ LINE_TARGET_ID
+//  (ฟังก์ชัน doPost นี้ยังเก็บไว้เผื่ออยากตั้ง webhook จริงเป็น URL ของ
+//  Apps Script เอง — จะ log userId ให้เหมือนกัน แค่ต้องยอมรับว่า Verify
+//  ในหน้า LINE Console อาจขึ้น error แม้ระบบจะยังทำงานปกติ)
 // ------------------------------------------------------------
 function doPost(e) {
   try {
@@ -499,9 +500,9 @@ function approveReservation(password, rowId) {
   if (baseUrl) maidLines.push("🔗 " + baseUrl);
 
   var maidMsg = buildFlexNoticeMessage_("🧺 การจองห้องประชุมได้รับการอนุมัติแล้ว — กรุณาเตรียมการ", maidLines);
-  var maidSent = sendLineMessage_(LINE_MAEBAAN_TARGET_ID, [maidMsg]);
+  var maidSent = sendLineMessage_(LINE_TARGET_ID, [maidMsg]);
   if (!maidSent) {
-    Logger.log("⚠️ แจ้งเตือนแม่บ้านไม่สำเร็จสำหรับแถว " + rowId + " — ดู log ด้านบนสำหรับรายละเอียด error จาก LINE");
+    Logger.log("⚠️ แจ้งเตือนเตรียมการไม่สำเร็จสำหรับแถว " + rowId + " — ดู log ด้านบนสำหรับรายละเอียด error จาก LINE");
   }
 
   return {
@@ -671,7 +672,7 @@ function cancelReservationByRequester(id, email) {
     reason: "ยกเลิกโดยผู้จองเอง"
   });
 
-  // แจ้งเตือน admin (และแม่บ้านถ้าอนุมัติไปแล้ว) เผื่อกำลังเตรียมของอยู่
+  // แจ้งเตือนผู้ดูแลระบบ เผื่อกำลังเตรียมของอยู่ (ถ้าอนุมัติไปแล้วก่อนหน้านี้)
   var cancelLines = [
     "👤 ผู้จอง: " + name,
     "📍 ห้อง: " + room,
@@ -680,10 +681,7 @@ function cancelReservationByRequester(id, email) {
     "📌 เรื่อง: " + project
   ];
   var cancelMsg = buildFlexNoticeMessage_("🚫 ผู้จองยกเลิกการจองด้วยตัวเอง", cancelLines);
-  sendLineMessage_(LINE_ADMIN_TARGET_ID, [cancelMsg]);
-  if (status === STATUS_APPROVED) {
-    sendLineMessage_(LINE_MAEBAAN_TARGET_ID, [cancelMsg]);
-  }
+  sendLineMessage_(LINE_TARGET_ID, [cancelMsg]);
 
   return { success: true, message: "ยกเลิกการจองเรียบร้อยแล้ว" };
 }
@@ -780,14 +778,14 @@ function buildFlexNoticeMessage_(title, lines, approveUrl, rejectUrl) {
 }
 
 // ------------------------------------------------------------
-//  testLineMaebaan — ฟังก์ชันทดสอบ (ไม่เกี่ยวกับระบบจอง)
+//  testLineNotification — ฟังก์ชันทดสอบ (ไม่เกี่ยวกับระบบจอง)
 //  ใช้สำหรับดีบักโดยเฉพาะ: เปิด Apps Script editor แล้วเลือกรันฟังก์ชันนี้
-//  (Run > testLineMaebaan) จากนั้นดู Execution log (View > Logs) จะเห็น
-//  error จริงจาก LINE ถ้าส่งไม่สำเร็จ (เช่น target ผิด, token หมดอายุ)
+//  (Run > testLineNotification) จากนั้นดู Execution log (View > Logs)
+//  จะเห็น error จริงจาก LINE ถ้าส่งไม่สำเร็จ (เช่น target ผิด, token หมดอายุ)
 // ------------------------------------------------------------
-function testLineMaebaan() {
-  var ok = sendLineTextMessage_(LINE_MAEBAAN_TARGET_ID, "🔧 ทดสอบการแจ้งเตือนไปยังแม่บ้าน (ลบข้อความนี้ทิ้งได้)");
-  Logger.log("ผลการทดสอบส่งไปยังแม่บ้าน: " + (ok ? "✅ สำเร็จ" : "❌ ไม่สำเร็จ — ดู log ด้านบนเพื่อดูสาเหตุจาก LINE"));
+function testLineNotification() {
+  var ok = sendLineTextMessage_(LINE_TARGET_ID, "🔧 ทดสอบการแจ้งเตือน (ลบข้อความนี้ทิ้งได้)");
+  Logger.log("ผลการทดสอบส่ง: " + (ok ? "✅ สำเร็จ" : "❌ ไม่สำเร็จ — ดู log ด้านบนเพื่อดูสาเหตุจาก LINE"));
 }
 
 // ------------------------------------------------------------
@@ -913,7 +911,7 @@ function saveReservation(formData) {
 
     var bookingTitle = "🔔 คำขอจองห้องประชุมใหม่" + (dates.length > 1 ? " (จองซ้ำ " + dates.length + " ครั้ง)" : "");
     var bookingMsg = buildFlexNoticeMessage_(bookingTitle, bookingLines, approveUrl, rejectUrl);
-    sendLineMessage_(LINE_ADMIN_TARGET_ID, [bookingMsg]);
+    sendLineMessage_(LINE_TARGET_ID, [bookingMsg]);
 
     return {
       success: true,
