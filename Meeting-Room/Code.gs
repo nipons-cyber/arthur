@@ -521,6 +521,64 @@ function cancelReservationGroup(password, groupId, reason) {
 }
 
 // ------------------------------------------------------------
+//  cancelReservationByRequester — ผู้จองยกเลิกการจองของตัวเอง
+//  ไม่ต้องผ่านการอนุมัติของ Admin ยืนยันตัวตนด้วยอีเมลที่ใช้ตอนจอง
+//  (ต้องตรงกับที่บันทึกไว้ในแถวนั้นเป๊ะๆ ถึงจะยกเลิกได้)
+// ------------------------------------------------------------
+function cancelReservationByRequester(id, email) {
+  var realRow = parseInt(id, 10) + 1;
+
+  var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);
+  if (isNaN(realRow) || realRow < 2 || realRow > sheet.getLastRow()) {
+    return { success: false, message: "ไม่พบรายการจองนี้" };
+  }
+
+  var row = sheet.getRange(realRow, 1, 1, 13).getValues()[0];
+  var storedEmail = (row[11] || "").toString().trim().toLowerCase();
+  var inputEmail  = (email || "").toString().trim().toLowerCase();
+  if (!storedEmail || storedEmail !== inputEmail) {
+    return { success: false, message: "อีเมลไม่ตรงกับที่ใช้ตอนจอง กรุณาตรวจสอบอีกครั้ง" };
+  }
+
+  var status = (row[12] || STATUS_PENDING).toString();
+  if (status === STATUS_CANCELLED) {
+    return { success: false, message: "รายการนี้ถูกยกเลิกไปแล้ว" };
+  }
+  if (status === STATUS_REJECTED) {
+    return { success: false, message: "รายการนี้ถูกปฏิเสธไปแล้ว ไม่สามารถยกเลิกซ้ำได้" };
+  }
+
+  sheet.getRange(realRow, 13).setValue(STATUS_CANCELLED);
+
+  var name    = (row[7] || "").toString();
+  var project = (row[4] || "").toString();
+  var date    = parseRowDate(row[0]);
+  var room    = (row[1] || "").toString();
+  var start   = parseRowTime(row[2]);
+  var end     = parseRowTime(row[3]);
+
+  sendDecisionEmail_(storedEmail, {
+    kind: "cancelled", name: name, room: room, date: date,
+    start: start, end: end, project: project,
+    reason: "ยกเลิกโดยผู้จองเอง"
+  });
+
+  // แจ้งเตือน admin (และแม่บ้านถ้าอนุมัติไปแล้ว) เผื่อกำลังเตรียมของอยู่
+  var msg = "🚫 <b>ผู้จองยกเลิกการจองด้วยตัวเอง</b>\n\n"
+    + "👤 ผู้จอง : " + name + "\n"
+    + "📍 ห้อง   : " + room + "\n"
+    + "📅 วันที่  : " + formatDateThaiLong_(date) + "\n"
+    + "⏰ เวลา   : " + start + " – " + end + " น.\n"
+    + "📌 เรื่อง  : " + project;
+  sendTelegramNotification_(msg, TELEGRAM_CHAT_ID);
+  if (status === STATUS_APPROVED) {
+    sendTelegramNotification_(msg, TELEGRAM_MAEBAAN_CHAT_ID);
+  }
+
+  return { success: true, message: "ยกเลิกการจองเรียบร้อยแล้ว" };
+}
+
+// ------------------------------------------------------------
 //  getSignatureBase64 — คืนค่าลายเซ็น (base64 data URI) ให้ตรงตามที่เก็บไว้
 //  ลายเซ็นถูกเก็บเป็น base64 data URI ตรงในเซลล์ชีตอยู่แล้ว (ดู saveReservation)
 //  ฟังก์ชันนี้เก็บไว้เพื่อความเข้ากันได้กับ index.html เดิม และรองรับรายการ
