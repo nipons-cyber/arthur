@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ระบบติดตามความคืบหน้าโครงการ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ig-1: #405DE6;
+      --ig-2: #833AB4;
+      --ig-3: #C13584;
+      --ig-4: #E1306C;
+      --ig-5: #FD1D1D;
+      --ig-6: #F77737;
+      --ig-7: #FCAF45;
+      --ink: #2b2b3a;
+      --muted: #7a7a8c;
+      --card-bg: #ffffff;
+      --border: #ececf3;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      font-family: 'Kanit', sans-serif;
+      color: var(--ink);
+      background: linear-gradient(135deg, var(--ig-1), var(--ig-2) 25%, var(--ig-3) 45%, var(--ig-4) 60%, var(--ig-5) 75%, var(--ig-6) 88%, var(--ig-7));
+      background-attachment: fixed;
+      min-height: 100vh;
+    }
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 20px 16px 60px; }
+
+    header.top {
+      color: #fff;
+      padding: 22px 6px 18px;
+      text-align: center;
+    }
+    header.top h1 { margin: 0 0 4px; font-size: 24px; font-weight: 600; letter-spacing: .3px; }
+    header.top p { margin: 0; font-size: 13px; opacity: .9; font-weight: 300; }
+
+    nav.tabs {
+      display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
+      margin: 18px 0 16px;
+      background: rgba(255,255,255,.16);
+      padding: 6px; border-radius: 14px;
+      backdrop-filter: blur(6px);
+    }
+    nav.tabs button {
+      flex: 1 1 auto; min-width: 110px;
+      border: none; cursor: pointer;
+      padding: 10px 14px; border-radius: 10px;
+      font-family: 'Kanit', sans-serif; font-size: 14px; font-weight: 500;
+      background: transparent; color: #fff; opacity: .85;
+      transition: .15s;
+    }
+    nav.tabs button.active {
+      background: #fff; color: var(--ig-3); opacity: 1;
+      box-shadow: 0 4px 14px rgba(0,0,0,.15);
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.12);
+      margin-bottom: 16px;
+    }
+    .card h2 { margin: 0 0 14px; font-size: 17px; font-weight: 600; }
+    .card h3 { margin: 0 0 6px; font-size: 15px; font-weight: 500; }
+
+    /* summary cards */
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .stat { background: var(--card-bg); border-radius: 14px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.1); text-align: center; }
+    .stat .num { font-size: 26px; font-weight: 600; background: linear-gradient(90deg, var(--ig-2), var(--ig-4) 60%, var(--ig-6)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .stat .lbl { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    .month-picker { display: flex; align-items: center; gap: 8px; justify-content: center; margin-bottom: 6px; color: #fff; font-size: 14px; }
+    .month-picker input { font-family: 'Kanit', sans-serif; border: none; border-radius: 8px; padding: 6px 10px; font-size: 14px; }
+
+    /* project cards */
+    .proj-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+    .proj-card { border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
+    .proj-card .row1 { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .proj-card .pname { font-weight: 600; font-size: 15px; }
+    .proj-card .powner { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .progress-bar-outer { background: #f0f0f5; border-radius: 8px; height: 10px; margin: 10px 0 6px; overflow: hidden; }
+    .progress-bar-inner { height: 100%; border-radius: 8px; background: linear-gradient(90deg, var(--ig-2), var(--ig-4) 60%, var(--ig-6)); transition: width .3s; }
+    .progress-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+    .sparkline { margin-top: 8px; }
+
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+    .badge.b-blue { background: #e7edff; color: #3757d6; }
+    .badge.b-orange { background: #fff2e0; color: #c96a00; }
+    .badge.b-red { background: #ffe6ea; color: #d6255a; }
+    .badge.b-green { background: #e2f8ec; color: #1c9a5b; }
+    .badge.b-gray { background: #eee; color: #777; }
+
+    /* forms */
+    label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 5px; }
+    label:first-of-type { margin-top: 0; }
+    input[type=text], input[type=number], input[type=date], input[type=month], select, textarea {
+      width: 100%; font-family: 'Kanit', sans-serif; font-size: 14px;
+      padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
+      background: #fafafe; color: var(--ink);
+    }
+    textarea { resize: vertical; min-height: 64px; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--ig-3); background: #fff; }
+
+    .range-row { display: flex; align-items: center; gap: 10px; }
+    input[type=range] { flex: 1; accent-color: var(--ig-3); }
+    .range-row input[type=number] { width: 76px; flex: none; text-align: center; }
+
+    .btn {
+      display: inline-block; border: none; cursor: pointer;
+      font-family: 'Kanit', sans-serif; font-size: 14px; font-weight: 500;
+      padding: 11px 18px; border-radius: 10px; color: #fff;
+      background: linear-gradient(90deg, var(--ig-2), var(--ig-4) 50%, var(--ig-6));
+    }
+    .btn.block { width: 100%; margin-top: 16px; }
+    .btn.secondary { background: #f1f1f6; color: var(--ink); }
+    .btn.small { padding: 6px 12px; font-size: 12px; }
+    .btn.danger { background: linear-gradient(135deg, var(--ig-4), var(--ig-5)); }
+    .btn:disabled { opacity: .6; cursor: not-allowed; }
+
+    .empty { text-align: center; color: var(--muted); font-size: 13px; padding: 24px 0; }
+
+    /* history table */
+    .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+    .filters > div { flex: 1 1 160px; }
+    table.hist { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.hist th, table.hist td { text-align: left; padding: 8px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    table.hist th { color: var(--muted); font-weight: 500; font-size: 12px; }
+    table.hist td.notes { max-width: 220px; white-space: pre-wrap; word-break: break-word; color: var(--muted); }
+    .table-scroll { overflow-x: auto; }
+
+    .top-actions { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+
+    .proj-list-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 4px; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
+    .proj-list-item:last-child { border-bottom: none; }
+    .edit-panel { display: none; background: #faf9ff; border-radius: 12px; padding: 12px; margin-top: 8px; }
+    .edit-panel.open { display: block; }
+
+    /* modal */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(20,10,30,.55);
+      align-items: center; justify-content: center; z-index: 100; padding: 16px;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal-card { background: #fff; border-radius: 18px; padding: 26px 22px; max-width: 340px; width: 100%; text-align: center; }
+    .modal-icon { width: 52px; height: 52px; border-radius: 50%; margin: 0 auto 14px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 24px; }
+    .modal-card.success .modal-icon { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+    .modal-card.fail .modal-icon { background: linear-gradient(135deg, var(--ig-4), var(--ig-5)); }
+    .modal-card.confirm .modal-icon { background: linear-gradient(135deg, var(--ig-2), var(--ig-4)); }
+    .modal-card p { font-size: 14px; margin: 0 0 18px; color: var(--ink); }
+    .modal-btns { display: flex; gap: 8px; }
+    .modal-btn { flex: 1; border: none; cursor: pointer; padding: 10px; border-radius: 10px; font-family: 'Kanit', sans-serif; font-size: 14px; }
+    .modal-btn.primary { color: #fff; background: linear-gradient(90deg, var(--ig-2), var(--ig-4) 50%, var(--ig-6)); }
+    .modal-btn.danger { color: #fff; background: linear-gradient(135deg, var(--ig-4), var(--ig-5)); }
+    .modal-btn.secondary { background: #f1f1f6; color: var(--ink); }
+
+    .loading-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #fff; margin-right: 6px; animation: blink 1s infinite; }
+    @keyframes blink { 0%,100%{opacity:.3} 50%{opacity:1} }
+
+    @media (max-width: 480px) {
+      header.top h1 { font-size: 20px; }
+      nav.tabs button { min-width: 45%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <h1>📊 ระบบติดตามความคืบหน้าโครงการ</h1>
+      <p>บันทึกและติดตาม Progress ของแต่ละโครงการรายเดือน</p>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="dashboard">ภาพรวม</button>
+      <button class="tab-btn" data-tab="record">บันทึกความคืบหน้า</button>
+      <button class="tab-btn" data-tab="projects">โครงการ</button>
+      <button class="tab-btn" data-tab="history">ประวัติ</button>
+    </nav>
+
+    <!-- DASHBOARD -->
+    <section id="panel-dashboard" class="panel active">
+      <div class="month-picker">
+        <span>ดูข้อมูลของเดือน:</span>
+        <input type="month" id="dashMonth">
+      </div>
+
+      <div class="summary-grid" id="summaryGrid"></div>
+
+      <div class="card">
+        <h2>ความคืบหน้าตามโครงการ</h2>
+        <div id="dashProjects" class="proj-grid"><div class="empty">กำลังโหลดข้อมูล...</div></div>
+      </div>
+    </section>
+
+    <!-- RECORD PROGRESS -->
+    <section id="panel-record" class="panel">
+      <div class="card">
+        <h2>บันทึกความคืบหน้าโครงการ</h2>
+        <form id="progressForm">
+          <label>โครงการ</label>
+          <select id="pf-project" required></select>
+
+          <label>เดือนที่รายงาน</label>
+          <input type="month" id="pf-month" required>
+
+          <label>ความคืบหน้า (%)</label>
+          <div class="range-row">
+            <input type="range" id="pf-range" min="0" max="100" step="1" value="0">
+            <input type="number" id="pf-progress" min="0" max="100" step="1" value="0">
+          </div>
+          <div class="progress-bar-outer" style="margin-top:10px;"><div class="progress-bar-inner" id="pf-bar" style="width:0%"></div></div>
+
+          <label>สถานะ</label>
+          <select id="pf-status"></select>
+
+          <label>หมายเหตุ</label>
+          <textarea id="pf-notes" placeholder="รายละเอียดความคืบหน้า อุปสรรค แผนถัดไป ฯลฯ"></textarea>
+
+          <label>ผู้บันทึก</label>
+          <input type="text" id="pf-updatedby" placeholder="ชื่อผู้บันทึกข้อมูล">
+
+          <button type="submit" class="btn block" id="pf-submit">บันทึกความคืบหน้า</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- PROJECTS -->
+    <section id="panel-projects" class="panel">
+      <div class="card">
+        <h2>เพิ่มโครงการใหม่</h2>
+        <form id="projectForm">
+          <label>ชื่อโครงการ</label>
+          <input type="text" id="np-name" required>
+
+          <label>ผู้รับผิดชอบ</label>
+          <input type="text" id="np-owner">
+
+          <label>วันที่เริ่มโครงการ</label>
+          <input type="date" id="np-startdate">
+
+          <label>สถานะ</label>
+          <select id="np-status"></select>
+
+          <label>รายละเอียด</label>
+          <textarea id="np-desc" placeholder="รายละเอียดโครงการโดยย่อ"></textarea>
+
+          <button type="submit" class="btn block" id="np-submit">เพิ่มโครงการ</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>รายชื่อโครงการทั้งหมด</h2>
+        <div id="projectList"><div class="empty">กำลังโหลดข้อมูล...</div></div>
+      </div>
+    </section>
+
+    <!-- HISTORY -->
+    <section id="panel-history" class="panel">
+      <div class="card">
+        <h2>ประวัติการบันทึกความคืบหน้า</h2>
+        <div class="filters">
+          <div>
+            <label>โครงการ</label>
+            <select id="hf-project"><option value="">ทั้งหมด</option></select>
+          </div>
+          <div>
+            <label>ตั้งแต่เดือน</label>
+            <input type="month" id="hf-from">
+          </div>
+          <div>
+            <label>ถึงเดือน</label>
+            <input type="month" id="hf-to">
+          </div>
+        </div>
+        <div class="top-actions">
+          <button class="btn secondary small" id="hf-export">⬇ ส่งออก CSV</button>
+        </div>
+        <div class="table-scroll">
+          <table class="hist">
+            <thead>
+              <tr>
+                <th>เดือน</th><th>โครงการ</th><th>ความคืบหน้า</th><th>สถานะ</th><th>หมายเหตุ</th><th>ผู้บันทึก</th><th>บันทึกเมื่อ</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="histBody"></tbody>
+          </table>
+        </div>
+        <div id="histEmpty" class="empty" style="display:none;">ยังไม่มีข้อมูล</div>
+      </div>
+    </section>
+  </div>
+
+  <!-- MODAL -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal-card" id="modalCard">
+      <div class="modal-icon" id="modalIcon">✓</div>
+      <p id="modalText"></p>
+      <div class="modal-btns" id="modalBtns"></div>
+    </div>
+  </div>
+
+  <script>
+    var STATE = { projects: [], progress: [], meta: { projectStatuses: [], progressStatuses: [] } };
+
+    function pad2(n) { return (n < 10 ? '0' : '') + n; }
+    function currentMonthStr() {
+      var d = new Date();
+      return d.getFullYear() + '-' + pad2(d.getMonth() + 1);
+    }
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    /* ---------- Modal helpers ---------- */
+    function showModal(type, text, buttons) {
+      var overlay = document.getElementById('modalOverlay');
+      var card = document.getElementById('modalCard');
+      var icon = document.getElementById('modalIcon');
+      var textEl = document.getElementById('modalText');
+      var btns = document.getElementById('modalBtns');
+      card.className = 'modal-card ' + type;
+      icon.textContent = type === 'success' ? '✓' : (type === 'fail' ? '✕' : '?');
+      textEl.textContent = text;
+      btns.innerHTML = '';
+      (buttons || [{ label: 'ตกลง', cls: 'primary', action: hideModal }]).forEach(function (b) {
+        var btn = document.createElement('button');
+        btn.className = 'modal-btn ' + b.cls;
+        btn.textContent = b.label;
+        btn.onclick = function () { b.action && b.action(); };
+        btns.appendChild(btn);
+      });
+      overlay.classList.add('show');
+    }
+    function hideModal() { document.getElementById('modalOverlay').classList.remove('show'); }
+    function confirmModal(text, onYes) {
+      showModal('confirm', text, [
+        { label: 'ยกเลิก', cls: 'secondary', action: hideModal },
+        { label: 'ยืนยัน', cls: 'danger', action: function () { hideModal(); onYes(); } }
+      ]);
+    }
+
+    /* ---------- Tabs ---------- */
+    document.querySelectorAll('.tab-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+        document.querySelectorAll('.panel').forEach(function (p) { p.classList.remove('active'); });
+        btn.classList.add('active');
+        document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    /* ---------- Status badge helpers ---------- */
+    function progressStatusClass(status) {
+      switch (status) {
+        case 'ตามแผน': return 'b-blue';
+        case 'ล่าช้า': return 'b-orange';
+        case 'มีความเสี่ยง': return 'b-red';
+        case 'เสร็จสมบูรณ์': return 'b-green';
+        default: return 'b-gray';
+      }
+    }
+    function projectStatusClass(status) {
+      switch (status) {
+        case 'กำลังดำเนินการ': return 'b-blue';
+        case 'เสร็จสิ้น': return 'b-green';
+        case 'ระงับชั่วคราว': return 'b-orange';
+        case 'ยกเลิก': return 'b-red';
+        default: return 'b-gray';
+      }
+    }
+
+    /* ---------- Data loading ---------- */
+    function loadAll() {
+      google.script.run.withSuccessHandler(function (meta) {
+        STATE.meta = meta;
+        fillSelect(document.getElementById('pf-status'), meta.progressStatuses);
+        fillSelect(document.getElementById('np-status'), meta.projectStatuses);
+      }).getMeta();
+
+      google.script.run.withSuccessHandler(function (projects) {
+        STATE.projects = projects || [];
+        renderProjectSelects();
+        renderProjectList();
+        renderDashboard();
+      }).withFailureHandler(onErr).getProjects();
+
+      google.script.run.withSuccessHandler(function (entries) {
+        STATE.progress = entries || [];
+        renderDashboard();
+        renderHistory();
+      }).withFailureHandler(onErr).getProgressEntries();
+    }
+
+    function onErr(err) {
+      showModal('fail', (err && err.message) ? err.message : String(err));
+    }
+
+    function fillSelect(sel, options) {
+      sel.innerHTML = '';
+      options.forEach(function (o) {
+        var opt = document.createElement('option');
+        opt.value = o; opt.textContent = o;
+        sel.appendChild(opt);
+      });
+    }
+
+    function renderProjectSelects() {
+      var pf = document.getElementById('pf-project');
+      var hf = document.getElementById('hf-project');
+      var curPf = pf.value, curHf = hf.value;
+      pf.innerHTML = '';
+      hf.innerHTML = '<option value="">ทั้งหมด</option>';
+      STATE.projects.forEach(function (p) {
+        var o1 = document.createElement('option'); o1.value = p.id; o1.textContent = p.name; pf.appendChild(o1);
+        var o2 = document.createElement('option'); o2.value = p.id; o2.textContent = p.name; hf.appendChild(o2);
+      });
+      if (curPf) pf.value = curPf;
+      if (curHf) hf.value = curHf;
+    }
+
+    /* ---------- Dashboard ---------- */
+    function sparklineSvg(history) {
+      if (!history.length) return '';
+      var w = 220, h = 40, pad = 4;
+      var pts = history.slice(-6);
+      var stepX = pts.length > 1 ? (w - pad * 2) / (pts.length - 1) : 0;
+      var coords = pts.map(function (p, i) {
+        var x = pad + i * stepX;
+        var y = h - pad - (p.progress / 100) * (h - pad * 2);
+        return x.toFixed(1) + ',' + y.toFixed(1);
+      }).join(' ');
+      var lastX = pad + (pts.length - 1) * stepX;
+      var lastY = h - pad - (pts[pts.length - 1].progress / 100) * (h - pad * 2);
+      return '<svg class="sparkline" width="100%" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">' +
+        '<polyline points="' + coords + '" fill="none" stroke="#C13584" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
+        '<circle cx="' + lastX.toFixed(1) + '" cy="' + lastY.toFixed(1) + '" r="3" fill="#E1306C"/>' +
+        '</svg>';
+    }
+
+    function renderDashboard() {
+      var monthInput = document.getElementById('dashMonth');
+      if (!monthInput.value) monthInput.value = currentMonthStr();
+      var selMonth = monthInput.value;
+
+      var container = document.getElementById('dashProjects');
+      var summaryGrid = document.getElementById('summaryGrid');
+
+      if (!STATE.projects.length) {
+        container.innerHTML = '<div class="empty">ยังไม่มีโครงการ กรุณาเพิ่มโครงการในแท็บ "โครงการ" ก่อน</div>';
+        summaryGrid.innerHTML = '';
+        return;
+      }
+
+      var progressValues = [];
+      var delayedCount = 0, completedCount = 0, noDataCount = 0;
+      var cardsHtml = STATE.projects.map(function (proj) {
+        var history = STATE.progress.filter(function (e) { return e.projectId === proj.id; })
+          .sort(function (a, b) { return a.month < b.month ? -1 : (a.month > b.month ? 1 : 0); });
+
+        var current = history.filter(function (e) { return e.month === selMonth; })[0];
+        var latestBefore = null;
+        if (!current) {
+          var before = history.filter(function (e) { return e.month <= selMonth; });
+          latestBefore = before.length ? before[before.length - 1] : null;
+        }
+        var effective = current || latestBefore;
+
+        if (effective) {
+          progressValues.push(effective.progress);
+          if (effective.status === 'ล่าช้า' || effective.status === 'มีความเสี่ยง') delayedCount++;
+          if (effective.status === 'เสร็จสมบูรณ์' || effective.progress >= 100) completedCount++;
+        } else {
+          noDataCount++;
+        }
+
+        var pct = effective ? effective.progress : 0;
+        var statusLabel = effective ? effective.status : 'ยังไม่มีข้อมูล';
+        var statusCls = effective ? progressStatusClass(effective.status) : 'b-gray';
+        var asOf = effective ? effective.month : '-';
+
+        return '<div class="proj-card">' +
+          '<div class="row1"><div><div class="pname">' + esc(proj.name) + '</div>' +
+          '<div class="powner">' + esc(proj.owner || 'ไม่ระบุผู้รับผิดชอบ') + '</div></div>' +
+          '<span class="badge ' + statusCls + '">' + esc(statusLabel) + '</span></div>' +
+          '<div class="progress-bar-outer"><div class="progress-bar-inner" style="width:' + pct + '%"></div></div>' +
+          '<div class="progress-meta"><span>' + pct + '%</span><span>ข้อมูลล่าสุด: ' + esc(asOf) + '</span></div>' +
+          sparklineSvg(history) +
+          '</div>';
+      }).join('');
+
+      container.innerHTML = cardsHtml;
+
+      var avg = progressValues.length ? Math.round(progressValues.reduce(function (a, b) { return a + b; }, 0) / progressValues.length) : 0;
+      summaryGrid.innerHTML =
+        stat(STATE.projects.length, 'โครงการทั้งหมด') +
+        stat(avg + '%', 'ความคืบหน้าเฉลี่ย') +
+        stat(delayedCount, 'ล่าช้า / มีความเสี่ยง') +
+        stat(completedCount, 'เสร็จสมบูรณ์') +
+        stat(noDataCount, 'ยังไม่รายงานเดือนนี้');
+
+      function stat(num, lbl) {
+        return '<div class="stat"><div class="num">' + num + '</div><div class="lbl">' + lbl + '</div></div>';
+      }
+    }
+    document.getElementById('dashMonth').addEventListener('change', renderDashboard);
+
+    /* ---------- Record progress form ---------- */
+    var pfRange = document.getElementById('pf-range');
+    var pfProgress = document.getElementById('pf-progress');
+    var pfBar = document.getElementById('pf-bar');
+    function syncProgressUi(val) {
+      val = Math.max(0, Math.min(100, Number(val) || 0));
+      pfRange.value = val; pfProgress.value = val; pfBar.style.width = val + '%';
+    }
+    pfRange.addEventListener('input', function () { syncProgressUi(pfRange.value); });
+    pfProgress.addEventListener('input', function () { syncProgressUi(pfProgress.value); });
+
+    document.getElementById('pf-month').value = currentMonthStr();
+
+    document.getElementById('progressForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var projectId = document.getElementById('pf-project').value;
+      if (!projectId) { showModal('fail', 'กรุณาเพิ่มโครงการก่อนบันทึกความคืบหน้า'); return; }
+      var payload = {
+        projectId: projectId,
+        month: document.getElementById('pf-month').value,
+        progress: Number(pfProgress.value),
+        status: document.getElementById('pf-status').value,
+        notes: document.getElementById('pf-notes').value,
+        updatedBy: document.getElementById('pf-updatedby').value
+      };
+      var btn = document.getElementById('pf-submit');
+      btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+      google.script.run
+        .withSuccessHandler(function (res) {
+          btn.disabled = false; btn.textContent = 'บันทึกความคืบหน้า';
+          document.getElementById('pf-notes').value = '';
+          showModal('success', res.mode === 'updated' ? 'อัปเดตความคืบหน้าเรียบร้อย' : 'บันทึกความคืบหน้าเรียบร้อย');
+          google.script.run.withSuccessHandler(function (entries) {
+            STATE.progress = entries || [];
+            renderDashboard(); renderHistory();
+          }).getProgressEntries();
+        })
+        .withFailureHandler(function (err) {
+          btn.disabled = false; btn.textContent = 'บันทึกความคืบหน้า';
+          onErr(err);
+        })
+        .submitProgress(payload);
+    });
+
+    /* ---------- Projects tab ---------- */
+    document.getElementById('projectForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var payload = {
+        name: document.getElementById('np-name').value,
+        owner: document.getElementById('np-owner').value,
+        startDate: document.getElementById('np-startdate').value,
+        status: document.getElementById('np-status').value,
+        description: document.getElementById('np-desc').value
+      };
+      var btn = document.getElementById('np-submit');
+      btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+      google.script.run
+        .withSuccessHandler(function () {
+          btn.disabled = false; btn.textContent = 'เพิ่มโครงการ';
+          document.getElementById('projectForm').reset();
+          showModal('success', 'เพิ่มโครงการเรียบร้อย');
+          google.script.run.withSuccessHandler(function (projects) {
+            STATE.projects = projects || [];
+            renderProjectSelects(); renderProjectList(); renderDashboard();
+          }).getProjects();
+        })
+        .withFailureHandler(function (err) {
+          btn.disabled = false; btn.textContent = 'เพิ่มโครงการ';
+          onErr(err);
+        })
+        .addProject(payload);
+    });
+
+    function renderProjectList() {
+      var el = document.getElementById('projectList');
+      if (!STATE.projects.length) { el.innerHTML = '<div class="empty">ยังไม่มีโครงการ</div>'; return; }
+      el.innerHTML = STATE.projects.map(function (p) {
+        return '<div class="proj-list-item-wrap" data-id="' + esc(p.id) + '">' +
+          '<div class="proj-list-item">' +
+          '<div><strong>' + esc(p.name) + '</strong> ' +
+          '<span class="badge ' + projectStatusClass(p.status) + '">' + esc(p.status) + '</span>' +
+          '<div class="powner">' + esc(p.owner || 'ไม่ระบุผู้รับผิดชอบ') + (p.startDate ? ' · เริ่ม ' + esc(p.startDate) : '') + '</div>' +
+          '</div>' +
+          '<button class="btn secondary small" onclick="toggleEdit(\'' + esc(p.id) + '\')">แก้ไข</button>' +
+          '</div>' +
+          '<div class="edit-panel" id="edit-' + esc(p.id) + '">' +
+          '<label>ชื่อโครงการ</label><input type="text" id="e-name-' + esc(p.id) + '" value="' + esc(p.name) + '">' +
+          '<label>ผู้รับผิดชอบ</label><input type="text" id="e-owner-' + esc(p.id) + '" value="' + esc(p.owner) + '">' +
+          '<label>สถานะ</label><select id="e-status-' + esc(p.id) + '">' + STATE.meta.projectStatuses.map(function (s) {
+            return '<option value="' + esc(s) + '"' + (s === p.status ? ' selected' : '') + '>' + esc(s) + '</option>';
+          }).join('') + '</select>' +
+          '<label>รายละเอียด</label><textarea id="e-desc-' + esc(p.id) + '">' + esc(p.description) + '</textarea>' +
+          '<button class="btn small" style="margin-top:10px;" onclick="saveEdit(\'' + esc(p.id) + '\')">บันทึก</button> ' +
+          '<button class="btn secondary small" style="margin-top:10px;" onclick="toggleEdit(\'' + esc(p.id) + '\')">ยกเลิก</button>' +
+          '</div>';
+      }).join('');
+    }
+
+    function toggleEdit(id) {
+      document.getElementById('edit-' + id).classList.toggle('open');
+    }
+    function saveEdit(id) {
+      var payload = {
+        id: id,
+        name: document.getElementById('e-name-' + id).value,
+        owner: document.getElementById('e-owner-' + id).value,
+        status: document.getElementById('e-status-' + id).value,
+        description: document.getElementById('e-desc-' + id).value
+      };
+      google.script.run
+        .withSuccessHandler(function () {
+          showModal('success', 'บันทึกการแก้ไขเรียบร้อย');
+          google.script.run.withSuccessHandler(function (projects) {
+            STATE.projects = projects || [];
+            renderProjectSelects(); renderProjectList(); renderDashboard();
+          }).getProjects();
+          google.script.run.withSuccessHandler(function (entries) {
+            STATE.progress = entries || [];
+            renderDashboard(); renderHistory();
+          }).getProgressEntries();
+        })
+        .withFailureHandler(onErr)
+        .updateProject(payload);
+    }
+
+    /* ---------- History tab ---------- */
+    function filteredHistory() {
+      var projId = document.getElementById('hf-project').value;
+      var from = document.getElementById('hf-from').value;
+      var to = document.getElementById('hf-to').value;
+      return STATE.progress.filter(function (e) {
+        if (projId && e.projectId !== projId) return false;
+        if (from && e.month < from) return false;
+        if (to && e.month > to) return false;
+        return true;
+      });
+    }
+
+    function renderHistory() {
+      var rows = filteredHistory();
+      var body = document.getElementById('histBody');
+      var emptyEl = document.getElementById('histEmpty');
+      if (!rows.length) {
+        body.innerHTML = '';
+        emptyEl.style.display = 'block';
+        return;
+      }
+      emptyEl.style.display = 'none';
+      body.innerHTML = rows.map(function (r) {
+        return '<tr>' +
+          '<td>' + esc(r.month) + '</td>' +
+          '<td>' + esc(r.projectName) + '</td>' +
+          '<td>' + r.progress + '%</td>' +
+          '<td><span class="badge ' + progressStatusClass(r.status) + '">' + esc(r.status) + '</span></td>' +
+          '<td class="notes">' + esc(r.notes) + '</td>' +
+          '<td>' + esc(r.updatedBy) + '</td>' +
+          '<td>' + esc(r.updatedAt) + '</td>' +
+          '<td><button class="btn danger small" onclick="removeProgress(\'' + esc(r.id) + '\')">ลบ</button></td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    document.getElementById('hf-project').addEventListener('change', renderHistory);
+    document.getElementById('hf-from').addEventListener('change', renderHistory);
+    document.getElementById('hf-to').addEventListener('change', renderHistory);
+
+    function removeProgress(id) {
+      confirmModal('ต้องการลบบันทึกนี้หรือไม่?', function () {
+        google.script.run
+          .withSuccessHandler(function () {
+            showModal('success', 'ลบข้อมูลเรียบร้อย');
+            google.script.run.withSuccessHandler(function (entries) {
+              STATE.progress = entries || [];
+              renderDashboard(); renderHistory();
+            }).getProgressEntries();
+          })
+          .withFailureHandler(onErr)
+          .deleteProgress(id);
+      });
+    }
+
+    document.getElementById('hf-export').addEventListener('click', function () {
+      var rows = filteredHistory();
+      if (!rows.length) { showModal('fail', 'ไม่มีข้อมูลให้ส่งออก'); return; }
+      var header = ['เดือน', 'โครงการ', 'ความคืบหน้า(%)', 'สถานะ', 'หมายเหตุ', 'ผู้บันทึก', 'บันทึกเมื่อ'];
+      var csvRows = [header.join(',')].concat(rows.map(function (r) {
+        return [r.month, r.projectName, r.progress, r.status, r.notes, r.updatedBy, r.updatedAt]
+          .map(function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; })
+          .join(',');
+      }));
+      var csv = '﻿' + csvRows.join('\r\n');
+      var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'project-progress-' + currentMonthStr() + '.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    /* ---------- init ---------- */
+    loadAll();
+  </script>
+</body>
+</html>
