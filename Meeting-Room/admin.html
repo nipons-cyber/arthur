@@ -119,20 +119,6 @@
       padding:2px 10px;border-radius:100px;margin-left:6px;
     }
     .card-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;}
-    .btn-approve{
-      flex:1;padding:10px;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border:none;
-      border-radius:10px;font-family:'Sarabun',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;
-      transition:opacity .2s,transform .15s;box-shadow:0 4px 12px rgba(34,197,94,.3);
-      display:inline-flex;align-items:center;justify-content:center;gap:6px;
-    }
-    .btn-approve:hover{opacity:.92;transform:translateY(-1px);}
-    .btn-reject{
-      flex:1;padding:10px;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border:none;
-      border-radius:10px;font-family:'Sarabun',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;
-      transition:opacity .2s,transform .15s;box-shadow:0 4px 12px rgba(239,68,68,.3);
-      display:inline-flex;align-items:center;justify-content:center;gap:6px;
-    }
-    .btn-reject:hover{opacity:.92;transform:translateY(-1px);}
     .btn-sig{
       padding:10px 16px;background:#eef2ff;color:#4338ca;border:1.5px solid #c7d2fe;border-radius:10px;
       font-family:'Sarabun',sans-serif;font-size:.85rem;font-weight:500;cursor:pointer;transition:all .2s;
@@ -189,16 +175,13 @@
         <h1>Admin Panel</h1>
         <div class="sub">ระบบจองห้องประชุม นครสวรรค์</div>
       </div>
-      <span class="badge-count" id="pendingCount">0 รอพิจารณา</span>
     </div>
     <button class="btn-logout" onclick="doLogout()">ออกจากระบบ</button>
   </div>
 
   <div class="filter-tabs">
     <button class="ftab active" onclick="filterCards('all',this)">ทั้งหมด</button>
-    <button class="ftab" onclick="filterCards('รอพิจารณา',this)"><i class='bx bx-time-five'></i> รอพิจารณา</button>
-    <button class="ftab" onclick="filterCards('อนุมัติ',this)"><i class='bx bx-check-circle'></i> อนุมัติแล้ว</button>
-    <button class="ftab" onclick="filterCards('ปฏิเสธ',this)"><i class='bx bx-x-circle'></i> ปฏิเสธ</button>
+    <button class="ftab" onclick="filterCards('อนุมัติ',this)"><i class='bx bx-check-circle'></i> การจองที่ใช้งานอยู่</button>
     <button class="ftab" onclick="filterCards('ยกเลิก',this)"><i class='bx bx-block'></i> ยกเลิก</button>
   </div>
 
@@ -262,8 +245,6 @@ function doLogout() {
 
 function renderCards(data) {
   const container = document.getElementById('cardsContainer');
-  const pending = data.filter(d => d.status === 'รอพิจารณา').length;
-  document.getElementById('pendingCount').textContent = pending + ' รอพิจารณา';
 
   if (!data.length) {
     container.innerHTML = '<div class="empty">ไม่พบข้อมูล</div>';
@@ -286,10 +267,7 @@ function renderCards(data) {
     const repeatTag = d.repeatGroupId ? `<span class="repeat-tag"><i class='bx bx-repeat'></i> จองซ้ำ</span>` : '';
 
     let actionBtns;
-    if (d.status === 'รอพิจารณา') {
-      actionBtns = `<button class="btn-approve" onclick="approve(${d.id})"><i class='bx bx-check-circle'></i> อนุมัติ</button>
-         <button class="btn-reject"  onclick="reject(${d.id})"><i class='bx bx-x-circle'></i> ปฏิเสธ</button>`;
-    } else if (d.status === 'อนุมัติ') {
+    if (d.status === 'อนุมัติ') {
       actionBtns = `<div class="decided-tag ok"><i class='bx bx-check-circle'></i> อนุมัติแล้ว</div>
         <button class="btn-cancel" onclick="cancelOne(${d.id})"><i class='bx bx-block'></i> ยกเลิกรายการนี้</button>`
         + (groupCount > 1
@@ -298,7 +276,8 @@ function renderCards(data) {
     } else if (d.status === 'ยกเลิก') {
       actionBtns = `<div class="decided-tag cancel"><i class='bx bx-block'></i> ยกเลิกแล้ว</div>`;
     } else {
-      actionBtns = `<div class="decided-tag reject"><i class='bx bx-x-circle'></i> ปฏิเสธแล้ว</div>`;
+      // สถานะเก่าจากก่อนเปลี่ยนเป็นระบบยืนยันอัตโนมัติ (เช่น "รอพิจารณา"/"ปฏิเสธ")
+      actionBtns = `<div class="decided-tag reject"><i class='bx bx-info-circle'></i> ${d.status}</div>`;
     }
 
     const sigBtn = d.signatureUrl
@@ -345,62 +324,6 @@ function filterCards(status, btn) {
 
 function showActionError(err) {
   Swal.fire({ icon:'error', title:'เกิดข้อผิดพลาด', text: (err && err.message) ? err.message : String(err), confirmButtonColor:'#4f46e5' });
-}
-
-function approve(id) {
-  Swal.fire({
-    title: 'ยืนยันการอนุมัติ?',
-    text : 'ระบบจะส่งอีเมลแจ้งผู้จองทันที',
-    icon : 'question',
-    showCancelButton: true,
-    confirmButtonText: 'อนุมัติ',
-    cancelButtonText : 'ยกเลิก',
-    confirmButtonColor: '#16a34a',
-    cancelButtonColor: '#94a3b8'
-  }).then(r => {
-    if (!r.isConfirmed) return;
-    Swal.fire({ title:'กำลังดำเนินการ…', allowOutsideClick:false, didOpen:()=>Swal.showLoading() });
-    google.script.run
-      .withSuccessHandler(function(res) {
-        if (res.success) {
-          allData.find(d => d.id === id).status = 'อนุมัติ';
-          renderCards(allData);
-          Swal.fire({ icon:'success', title:'อนุมัติแล้ว!', text: res.message, confirmButtonColor:'#16a34a' });
-        } else {
-          Swal.fire({ icon:'error', title:'ผิดพลาด', text: res.message, confirmButtonColor:'#4f46e5' });
-        }
-      })
-      .withFailureHandler(showActionError)
-      .approveReservation(adminPW, id);
-  });
-}
-
-function reject(id) {
-  Swal.fire({
-    title: 'ระบุเหตุผลการปฏิเสธ',
-    input: 'textarea',
-    inputPlaceholder: 'เหตุผล… (ถ้ามี)',
-    showCancelButton: true,
-    confirmButtonText: 'ยืนยันปฏิเสธ',
-    cancelButtonText : 'ยกเลิก',
-    confirmButtonColor: '#dc2626',
-    cancelButtonColor: '#94a3b8'
-  }).then(r => {
-    if (!r.isConfirmed) return;
-    Swal.fire({ title:'กำลังดำเนินการ…', allowOutsideClick:false, didOpen:()=>Swal.showLoading() });
-    google.script.run
-      .withSuccessHandler(function(res) {
-        if (res.success) {
-          allData.find(d => d.id === id).status = 'ปฏิเสธ';
-          renderCards(allData);
-          Swal.fire({ icon:'info', title:'บันทึกการปฏิเสธแล้ว', text: res.message, confirmButtonColor:'#4f46e5' });
-        } else {
-          Swal.fire({ icon:'error', title:'ผิดพลาด', text: res.message, confirmButtonColor:'#4f46e5' });
-        }
-      })
-      .withFailureHandler(showActionError)
-      .rejectReservation(adminPW, id, r.value);
-  });
 }
 
 function cancelOne(id) {
