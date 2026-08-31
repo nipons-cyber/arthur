@@ -2,7 +2,7 @@
 //  ระบบจองห้องประชุม  —  Code.gs
 // ============================================================
 
-const SPREADSHEET_ID      = "xxxxxxxxxxxxxxxxxxxxxxxx"; // ไอดีชีต
+const SPREADSHEET_ID      = "13T5y3iM6CI-1P489fqFD12i5ytcEQDUBrAWjTJRtEgQ"; // ไอดีชีต
 const SHEET_NAME          = "Reservations";
 
 // ─── รายชื่อห้องประชุม + ชั้น + จำนวนที่นั่ง ───────────────────
@@ -14,22 +14,21 @@ const SHEET_NAME          = "Reservations";
 // เซิร์ฟเวอร์ด้วยกันกรณีมีคนพยายามส่งชื่อห้องที่ล็อกไว้เข้ามาตรงๆ)
 const ROOMS = [
   { name: "Stark 1",          seats: 6,  floor: 1, locked: true  },
-  { name: "Maverick 2",       seats: 18, floor: 1, locked: false },
+  { name: "Maverick 2",       seats: 12, floor: 1, locked: false },
   { name: "Gump 3",           seats: 40, floor: 1, locked: true  },
-  { name: "Sherlock 4",       seats: 18, floor: 2, locked: false },
+  { name: "Sherlock 4",       seats: 12, floor: 2, locked: false },
   { name: "Wayne 5",          seats: 6,  floor: 2, locked: false },
   { name: "Thor 6",           seats: 6,  floor: 3, locked: false },
   { name: "Hermione 7",       seats: 6,  floor: 3, locked: false },
   { name: "Yoda 8",           seats: 30, floor: 3, locked: true  },
   { name: "Platform 9-3/4",   seats: 8,  floor: 3, locked: true  },
   { name: "Natasha 10",       seats: 8,  floor: 3, locked: true  },
-  { name: "Dumbledore 11",    seats: 18, floor: 3, locked: true  },
+  { name: "Dumbledore 11",    seats: 12, floor: 3, locked: true  },
   { name: "Hulk 12",          seats: 6,  floor: 4, locked: false },
   { name: "Parker 13",        seats: 4,  floor: 4, locked: false }
 ];
 
 const REPEAT_FREQUENCIES = ["daily", "weekly", "monthly"];
-const STATUS_PENDING   = "รอพิจารณา";
 const STATUS_APPROVED  = "อนุมัติ";
 const STATUS_REJECTED  = "ปฏิเสธ";
 const STATUS_CANCELLED = "ยกเลิก";
@@ -37,9 +36,9 @@ const STATUS_CANCELLED = "ยกเลิก";
 // ─── ตั้งค่า LINE (Messaging API) ─────────────────────────────
 // สร้าง LINE Official Account + Messaging API Channel ได้ฟรีที่
 // https://developers.line.biz แล้วนำ "Channel access token" มาใส่ด้านล่าง
-const LINE_CHANNEL_ACCESS_TOKEN = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; // Messaging API > Channel access token
-const LINE_ADMIN_TARGET_ID      = "xxxxxxxxxxxxxxxxx";             // userId หรือ groupId ของ admin (แจ้งเตือนตอนมีการจองใหม่)
-const LINE_MAEBAAN_TARGET_ID    = "xxxxxxxxxxxxx";                 // userId หรือ groupId ของแม่บ้าน (แจ้งเตือนตอนอนุมัติแล้ว ให้เตรียมของ/พิมพ์ PDF)
+const LINE_CHANNEL_ACCESS_TOKEN = "3iQLfu39vuFL90kRprneg1xaoz4MAcDMOGGKO0iH1lab0B6kOeIc8e+zgiveyiIHaQpqP/GuuatUQE7hRkApx/GPBPepEixHx60sx9TXu6aaDqJ7ekSY65nj4MCGx3R6zW0wx/81cjMapPKP0YMTMgdB04t89/1O/w1cDnyilFU="; // Messaging API > Channel access token
+const LINE_ADMIN_TARGET_ID      = "Ucd0a10d1d9441e6df08b7058de83be40";             // userId หรือ groupId ของ admin (แจ้งเตือนตอนมีการจองใหม่)
+const LINE_MAEBAAN_TARGET_ID    = "Ucbe08872ca776f638d70990b26380a7c";             // userId หรือ groupId ของแม่บ้าน (แจ้งเตือนตอนอนุมัติแล้ว ให้เตรียมของ/พิมพ์ PDF)
 // วิธีหา userId/groupId: ดูคอมเมนต์ที่ฟังก์ชัน doPost ด้านล่าง
 
 // ─── ตั้งค่า Admin Password ─────────────────────────────────
@@ -276,8 +275,7 @@ function buildEmailHtml_(opts) {
   var accent   = kind === "approved" ? "#15803d" : kind === "cancelled" ? "#475569" : "#991b1b";
   var accentBg = kind === "approved" ? "#dcfce7" : kind === "cancelled" ? "#e2e8f0" : "#fee2e2";
   var headLine = kind === "approved"  ? "✅ การจองห้องประชุมได้รับการอนุมัติ"
-               : kind === "cancelled" ? "🚫 การจองห้องประชุมถูกยกเลิก"
-               :                        "❌ การจองห้องประชุมไม่ได้รับการอนุมัติ";
+               : kind === "cancelled" ? "🚫 การจองห้องประชุมถูกยกเลิก";
   var introMsg = kind === "approved"
     ? "การจองห้องประชุมของท่านได้รับการอนุมัติแล้ว กรุณาเข้าระบบเพื่อดาวน์โหลดแบบฟอร์ม PDF สำหรับใช้เป็นเอกสารยืนยัน"
     : kind === "cancelled"
@@ -337,8 +335,7 @@ function buildEmailPlainText_(opts) {
   var kind = opts.kind || (opts.isApproved ? "approved" : "rejected");
   var lines = [];
   lines.push(kind === "approved"  ? "การจองห้องประชุมได้รับการอนุมัติ"
-           : kind === "cancelled" ? "การจองห้องประชุมถูกยกเลิก"
-           :                        "การจองห้องประชุมไม่ได้รับการอนุมัติ");
+           : kind === "cancelled" ? "การจองห้องประชุมถูกยกเลิก";
   lines.push("");
   lines.push("เรียน คุณ" + opts.name);
   lines.push("");
@@ -366,8 +363,7 @@ function sendDecisionEmail_(email, opts) {
   try {
     var kind = opts.kind || (opts.isApproved ? "approved" : "rejected");
     var subjectPrefix = kind === "approved"  ? "✅ อนุมัติการจองห้องประชุม — "
-                       : kind === "cancelled" ? "🚫 ยกเลิกการจองห้องประชุม — "
-                       :                        "❌ ไม่อนุมัติการจองห้องประชุม — ";
+                       : kind === "cancelled" ? "🚫 ยกเลิกการจองห้องประชุม — ";
     var subject = subjectPrefix + opts.project;
     MailApp.sendEmail({
       to       : email,
@@ -386,7 +382,7 @@ function sendDecisionEmail_(email, opts) {
 
 // ------------------------------------------------------------
 //  cancelReservation — admin ยกเลิกการจอง 1 รายการ
-//  (ใช้กับรายการที่ "รอพิจารณา" หรือ "อนุมัติ" ไปแล้วก็ได้ เผื่อลูกค้าแจ้งยกเลิกทีหลัง)
+//  (ใช้กับรายการที่ "อนุมัติ" ไปแล้วก็ได้ เผื่อลูกค้าแจ้งยกเลิกทีหลัง)
 // ------------------------------------------------------------
 function cancelReservation(password, rowId, reason) {
   if (password !== ADMIN_PASSWORD)
