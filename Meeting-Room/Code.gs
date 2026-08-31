@@ -2,7 +2,7 @@
 //  ระบบจองห้องประชุม  —  Code.gs
 // ============================================================
 
-const SPREADSHEET_ID      = "13T5y3iM6CI-1P489fqFD12i5ytcEQDUBrAWjTJRtEgQ"; // ไอดีชีต
+const SPREADSHEET_ID      = "xxxxxxxxxxxxxxxxx"; // ไอดีชีต
 const SHEET_NAME          = "Reservations";
 
 // ─── รายชื่อห้องประชุม + ชั้น + จำนวนที่นั่ง ───────────────────
@@ -36,9 +36,9 @@ const STATUS_CANCELLED = "ยกเลิก";
 // ─── ตั้งค่า LINE (Messaging API) ─────────────────────────────
 // สร้าง LINE Official Account + Messaging API Channel ได้ฟรีที่
 // https://developers.line.biz แล้วนำ "Channel access token" มาใส่ด้านล่าง
-const LINE_CHANNEL_ACCESS_TOKEN = "3iQLfu39vuFL90kRprneg1xaoz4MAcDMOGGKO0iH1lab0B6kOeIc8e+zgiveyiIHaQpqP/GuuatUQE7hRkApx/GPBPepEixHx60sx9TXu6aaDqJ7ekSY65nj4MCGx3R6zW0wx/81cjMapPKP0YMTMgdB04t89/1O/w1cDnyilFU="; // Messaging API > Channel access token
-const LINE_ADMIN_TARGET_ID      = "Ucd0a10d1d9441e6df08b7058de83be40";             // userId หรือ groupId ของ admin (แจ้งเตือนตอนมีการจองใหม่)
-const LINE_MAEBAAN_TARGET_ID    = "Ucbe08872ca776f638d70990b26380a7c";             // userId หรือ groupId ของแม่บ้าน (แจ้งเตือนตอนอนุมัติแล้ว ให้เตรียมของ/พิมพ์ PDF)
+const LINE_CHANNEL_ACCESS_TOKEN = "xxxxxxx"; // Messaging API > Channel access token
+const LINE_ADMIN_TARGET_ID      = "xxxxxxx";             // userId หรือ groupId ของ admin (แจ้งเตือนตอนมีการจองใหม่)
+const LINE_MAEBAAN_TARGET_ID    = "xxxxxxx";             // userId หรือ groupId ของแม่บ้าน (แจ้งเตือนตอนอนุมัติแล้ว ให้เตรียมของ/พิมพ์ PDF)
 // วิธีหา userId/groupId: ดูคอมเมนต์ที่ฟังก์ชัน doPost ด้านล่าง
 
 // ─── ตั้งค่า Admin Password ─────────────────────────────────
