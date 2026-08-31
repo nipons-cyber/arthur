@@ -2,39 +2,44 @@
 //  ระบบจองห้องประชุม  —  Code.gs
 // ============================================================
 
-const SPREADSHEET_ID      = "xxxxxxxxxxxxxxxxxxxxxxxx"; // ไอดีชีต
+const SPREADSHEET_ID      = "13T5y3iM6CI-1P489fqFD12i5ytcEQDUBrAWjTJRtEgQ"; // ไอดีชีต
 const SHEET_NAME          = "Reservations";
-const SIGNATURE_FOLDER_ID = "xxxxxxxxxxxxxxxxxxxxxxxxxxx"; // ไอดีโฟลเดอร์
 
-// ─── รายชื่อห้องประชุม + จำนวนที่นั่ง ───────────────────────
-// หมายเหตุ: index.html ดึงรายการนี้มาสร้าง <select> โดยตรงผ่าน HTML template
-// scriptlet (<? ROOMS ?>) เพื่อให้ฝั่ง client กับ server ใช้ข้อมูลชุดเดียวกันเสมอ
+// ─── รายชื่อห้องประชุม + ชั้น + จำนวนที่นั่ง ───────────────────
+// หมายเหตุ: index.html ดึงรายการนี้มาสร้าง <select> (จัดกลุ่มตามชั้นด้วย
+// <optgroup>) โดยตรงผ่าน HTML template scriptlet เพื่อให้ฝั่ง client กับ
+// server ใช้ข้อมูลชุดเดียวกันเสมอ
+// locked: true = ห้องปิดใช้งานชั่วคราว โชว์ในรายการแต่เลือกจองไม่ได้
+// (index.html ใส่ disabled ให้ที่ <option>, saveReservation เช็คซ้ำฝั่ง
+// เซิร์ฟเวอร์ด้วยกันกรณีมีคนพยายามส่งชื่อห้องที่ล็อกไว้เข้ามาตรงๆ)
 const ROOMS = [
-  { name: "Stark 1",          seats: 6  },
-  { name: "Maverick 2",       seats: 18 },
-  { name: "Gump 3",           seats: 40 },
-  { name: "Sherlock 4",       seats: 18 },
-  { name: "Wayne 5",          seats: 6  },
-  { name: "Thor 6",           seats: 6  },
-  { name: "Hermione 7",       seats: 6  },
-  { name: "Yoda 8",           seats: 30 },
-  { name: "Platform 9-3/4",   seats: 8  },
-  { name: "Natasha 10",       seats: 8  },
-  { name: "Dumbledore 11",    seats: 18 },
-  { name: "Hulk 12",          seats: 6  },
-  { name: "Parker 13",        seats: 4  }
+  { name: "Stark 1",          seats: 6,  floor: 1, locked: true  },
+  { name: "Maverick 2",       seats: 12, floor: 1, locked: false },
+  { name: "Gump 3",           seats: 40, floor: 1, locked: true  },
+  { name: "Sherlock 4",       seats: 12, floor: 2, locked: false },
+  { name: "Wayne 5",          seats: 6,  floor: 2, locked: false },
+  { name: "Thor 6",           seats: 6,  floor: 3, locked: false },
+  { name: "Hermione 7",       seats: 6,  floor: 3, locked: false },
+  { name: "Yoda 8",           seats: 30, floor: 3, locked: true  },
+  { name: "Platform 9-3/4",   seats: 8,  floor: 3, locked: true  },
+  { name: "Natasha 10",       seats: 8,  floor: 3, locked: true  },
+  { name: "Dumbledore 11",    seats: 12, floor: 3, locked: true  },
+  { name: "Hulk 12",          seats: 6,  floor: 4, locked: false },
+  { name: "Parker 13",        seats: 4,  floor: 4, locked: false }
 ];
 
 const REPEAT_FREQUENCIES = ["daily", "weekly", "monthly"];
-const STATUS_PENDING   = "รอพิจารณา";
 const STATUS_APPROVED  = "อนุมัติ";
 const STATUS_REJECTED  = "ปฏิเสธ";
 const STATUS_CANCELLED = "ยกเลิก";
 
-// ─── ตั้งค่า Telegram ───────────────────────────────────────
-const TELEGRAM_BOT_TOKEN       = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx";        // ใส่ token จาก @BotFather
-const TELEGRAM_CHAT_ID         = "xxxxxxxxxxxxxxxxx";          // ใส่ chat_id ของ admin (แจ้งเตือนตอนมีการจองใหม่)
-const TELEGRAM_MAEBAAN_CHAT_ID = "xxxxxxxxxxxxx";   // ใส่ chat_id ของแม่บ้าน (แจ้งเตือนตอนอนุมัติแล้ว ให้เตรียมของ/พิมพ์ PDF)
+// ─── ตั้งค่า LINE (Messaging API) ─────────────────────────────
+// สร้าง LINE Official Account + Messaging API Channel ได้ฟรีที่
+// https://developers.line.biz แล้วนำ "Channel access token" มาใส่ด้านล่าง
+const LINE_CHANNEL_ACCESS_TOKEN = "3iQLfu39vuFL90kRprneg1xaoz4MAcDMOGGKO0iH1lab0B6kOeIc8e+zgiveyiIHaQpqP/GuuatUQE7hRkApx/GPBPepEixHx60sx9TXu6aaDqJ7ekSY65nj4MCGx3R6zW0wx/81cjMapPKP0YMTMgdB04t89/1O/w1cDnyilFU="; // Messaging API > Channel access token
+const LINE_ADMIN_TARGET_ID      = "Ucd0a10d1d9441e6df08b7058de83be40";             // userId หรือ groupId ของ admin (แจ้งเตือนตอนมีการจองใหม่)
+const LINE_MAEBAAN_TARGET_ID    = "Ucbe08872ca776f638d70990b26380a7c";             // userId หรือ groupId ของแม่บ้าน (แจ้งเตือนตอนอนุมัติแล้ว ให้เตรียมของ/พิมพ์ PDF)
+// วิธีหา userId/groupId: ดูคอมเมนต์ที่ฟังก์ชัน doPost ด้านล่าง
 
 // ─── ตั้งค่า Admin Password ─────────────────────────────────
 const ADMIN_PASSWORD = "admin1234";  // เปลี่ยนตามต้องการ
@@ -63,6 +68,38 @@ function doGet(e) {
   return html
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag("viewport", "width=device-width, initial-scale=1.0, maximum-scale=1.0");
+}
+
+// ------------------------------------------------------------
+//  doPost — รับ webhook event จาก LINE
+//  ใช้หลักๆ เพื่อหา userId/groupId ของ admin/แม่บ้านตอนตั้งค่าครั้งแรก
+//  (ระบบไม่ได้ประมวลผล postback ใดๆ จาก webhook นี้ — ใช้แค่ log สำหรับ
+//  หา ID ตอนตั้งค่า ต้องเปิด webhook ไว้ตอนหา ID และให้ verify ผ่าน)
+//
+//  วิธีหา userId/groupId:
+//  1) Deploy เว็บแอปนี้ แล้วนำ URL ที่ลงท้าย /exec ไปตั้งเป็น Webhook URL ที่
+//     LINE Developers Console > Messaging API > Webhook settings
+//     เปิด "Use webhook" แล้วกด Verify ให้ขึ้นสำเร็จ
+//  2) เพิ่มบอทเป็นเพื่อน (สแกน QR ใน Console) แล้วพิมพ์ข้อความอะไรก็ได้ไปหาบอท
+//     — ถ้าจะเอา groupId ให้เชิญบอทเข้ากลุ่มแล้วพิมพ์ข้อความในกลุ่มนั้นแทน
+//  3) เปิด Apps Script > Executions ดู log ของ doPost จะเห็น userId/groupId
+//     คัดลอกไปใส่ LINE_ADMIN_TARGET_ID หรือ LINE_MAEBAAN_TARGET_ID
+// ------------------------------------------------------------
+function doPost(e) {
+  try {
+    var body = JSON.parse(e.postData.contents);
+    (body.events || []).forEach(function(event) {
+      var source = event.source || {};
+      Logger.log("LINE event: type=" + event.type
+        + " userId=" + (source.userId || "-")
+        + " groupId=" + (source.groupId || "-")
+        + " roomId=" + (source.roomId || "-"));
+    });
+  } catch (parseErr) {
+    Logger.log("doPost parse error: " + parseErr);
+  }
+  return ContentService.createTextOutput(JSON.stringify({ status: "ok" }))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 // ------------------------------------------------------------
@@ -230,14 +267,15 @@ function getAllReservationsAdmin(password) {
 //  buildEmailHtml_ — สร้างเทมเพลต HTML email กลาง ใช้ทั้งอนุมัติ/ปฏิเสธ
 // ------------------------------------------------------------
 function buildEmailHtml_(opts) {
-  // opts: { kind: 'approved'|'rejected'|'cancelled', name, room, date, start, end, project, qty, reason }
+  // opts: { kind: 'approved'|'rejected'|'cancelled', name, room, date, dateDisplay, start, end, project, qty, reason }
+  // dateDisplay: ข้อความวันที่ที่จัดรูปแบบไว้แล้ว (ใช้กรณีจองซ้ำ/หลายวัน) ถ้าไม่ส่งมาจะจัดรูปแบบจาก date ให้อัตโนมัติ
   var kind = opts.kind || (opts.isApproved ? "approved" : "rejected"); // isApproved: เผื่อโค้ดเก่าเรียกแบบเดิม
+  var dateDisplay = opts.dateDisplay || formatDateThaiLong_(opts.date);
 
   var accent   = kind === "approved" ? "#15803d" : kind === "cancelled" ? "#475569" : "#991b1b";
   var accentBg = kind === "approved" ? "#dcfce7" : kind === "cancelled" ? "#e2e8f0" : "#fee2e2";
   var headLine = kind === "approved"  ? "✅ การจองห้องประชุมได้รับการอนุมัติ"
-               : kind === "cancelled" ? "🚫 การจองห้องประชุมถูกยกเลิก"
-               :                        "❌ การจองห้องประชุมไม่ได้รับการอนุมัติ";
+               : kind === "cancelled" ? "🚫 การจองห้องประชุมถูกยกเลิก";
   var introMsg = kind === "approved"
     ? "การจองห้องประชุมของท่านได้รับการอนุมัติแล้ว กรุณาเข้าระบบเพื่อดาวน์โหลดแบบฟอร์ม PDF สำหรับใช้เป็นเอกสารยืนยัน"
     : kind === "cancelled"
@@ -259,7 +297,7 @@ function buildEmailHtml_(opts) {
 '<div style="background:#f1f5f9;padding:32px 16px;font-family:Tahoma,Arial,sans-serif;">' +
   '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 18px rgba(15,23,42,.08);">' +
     '<tr><td style="background:linear-gradient(135deg,#4f46e5,#7c3aed);background-color:#4f46e5;padding:28px 28px 22px;">' +
-      '<div style="display:inline-block;background:rgba(255,255,255,.18);color:#e0e7ff;font-size:11px;font-weight:600;letter-spacing:.5px;padding:4px 12px;border-radius:100px;margin-bottom:10px;">สำนักงานหลักสูตร วท.บ.สุขภาพดิจิทัล</div><br>' +
+      '<div style="display:inline-block;background:rgba(255,255,255,.18);color:#e0e7ff;font-size:11px;font-weight:600;letter-spacing:.5px;padding:4px 12px;border-radius:100px;margin-bottom:10px;">SPK DISTRIBUTION OFFICE</div><br>' +
       '<span style="font-family:Tahoma,Arial,sans-serif;font-size:20px;font-weight:700;color:#ffffff;">ระบบจองห้องประชุม</span>' +
     '</td></tr>' +
     '<tr><td style="padding:26px 28px 6px;">' +
@@ -271,7 +309,7 @@ function buildEmailHtml_(opts) {
       '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;">' +
         '<tr><td style="padding:16px 18px;font-size:13.5px;color:#334155;line-height:2;">' +
           '<b style="color:#1e293b;">ห้องประชุม</b>&nbsp;&nbsp;' + opts.room + '<br>' +
-          '<b style="color:#1e293b;">วันที่</b>&nbsp;&nbsp;' + formatDateThaiLong_(opts.date) + '<br>' +
+          '<b style="color:#1e293b;">วันที่</b>&nbsp;&nbsp;' + dateDisplay + '<br>' +
           '<b style="color:#1e293b;">เวลา</b>&nbsp;&nbsp;' + opts.start + ' – ' + opts.end + ' น.<br>' +
           '<b style="color:#1e293b;">โครงการ/กิจกรรม</b>&nbsp;&nbsp;' + opts.project +
           (opts.qty ? '<br><b style="color:#1e293b;">จำนวนผู้เข้าร่วม</b>&nbsp;&nbsp;' + opts.qty + ' คน' : '') +
@@ -281,7 +319,7 @@ function buildEmailHtml_(opts) {
     reasonBlock +
     '<tr><td style="padding:22px 28px 26px;">' +
       '<p style="font-size:13px;color:#64748b;line-height:1.8;margin:0 0 4px;">หากมีข้อสงสัยกรุณาติดต่อเจ้าหน้าที่ผู้ดูแลระบบ</p>' +
-      '<p style="font-size:13px;color:#64748b;line-height:1.8;margin:0;">ขอบคุณครับ/ค่ะ<br><b style="color:#475569;">สำนักงานหลักสูตร วท.บ.สุขภาพดิจิทัล</b></p>' +
+      '<p style="font-size:13px;color:#64748b;line-height:1.8;margin:0;">ขอบคุณครับ/ค่ะ<br><b style="color:#475569;">SPK DISTRIBUTION OFFICE</b></p>' +
     '</td></tr>' +
     '<tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:14px 28px;text-align:center;">' +
       '<span style="font-size:11.5px;color:#94a3b8;">อีเมลนี้ส่งโดยระบบอัตโนมัติ กรุณาอย่าตอบกลับอีเมลนี้</span>' +
@@ -297,13 +335,12 @@ function buildEmailPlainText_(opts) {
   var kind = opts.kind || (opts.isApproved ? "approved" : "rejected");
   var lines = [];
   lines.push(kind === "approved"  ? "การจองห้องประชุมได้รับการอนุมัติ"
-           : kind === "cancelled" ? "การจองห้องประชุมถูกยกเลิก"
-           :                        "การจองห้องประชุมไม่ได้รับการอนุมัติ");
+           : kind === "cancelled" ? "การจองห้องประชุมถูกยกเลิก";
   lines.push("");
   lines.push("เรียน คุณ" + opts.name);
   lines.push("");
   lines.push("ห้องประชุม : " + opts.room);
-  lines.push("วันที่      : " + formatDateThaiLong_(opts.date));
+  lines.push("วันที่      : " + (opts.dateDisplay || formatDateThaiLong_(opts.date)));
   lines.push("เวลา       : " + opts.start + " – " + opts.end + " น.");
   lines.push("โครงการ    : " + opts.project);
   if (kind !== "approved") {
@@ -326,8 +363,7 @@ function sendDecisionEmail_(email, opts) {
   try {
     var kind = opts.kind || (opts.isApproved ? "approved" : "rejected");
     var subjectPrefix = kind === "approved"  ? "✅ อนุมัติการจองห้องประชุม — "
-                       : kind === "cancelled" ? "🚫 ยกเลิกการจองห้องประชุม — "
-                       :                        "❌ ไม่อนุมัติการจองห้องประชุม — ";
+                       : kind === "cancelled" ? "🚫 ยกเลิกการจองห้องประชุม — ";
     var subject = subjectPrefix + opts.project;
     MailApp.sendEmail({
       to       : email,
@@ -345,102 +381,8 @@ function sendDecisionEmail_(email, opts) {
 }
 
 // ------------------------------------------------------------
-//  approveReservation — admin อนุมัติ
-// ------------------------------------------------------------
-function approveReservation(password, rowId) {
-  if (password !== ADMIN_PASSWORD)
-    return { success: false, message: "รหัสผ่านไม่ถูกต้อง" };
-
-  var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);
-  var realRow = parseInt(rowId) + 1;  // +1 เพราะ row 1 = header
-
-  // อัปเดต column M (index 13) = status
-  sheet.getRange(realRow, 13).setValue(STATUS_APPROVED);
-
-  // ดึงข้อมูลแถวนั้นมาส่งอีเมล / แจ้งเตือน
-  var row = sheet.getRange(realRow, 1, 1, 13).getValues()[0];
-  var email     = (row[11] || "").toString();
-  var name      = (row[7]  || "").toString();
-  var project   = (row[4]  || "").toString();
-  var date      = parseRowDate(row[0]);
-  var room      = (row[1]  || "").toString();
-  var start     = parseRowTime(row[2]);
-  var end       = parseRowTime(row[3]);
-  var qty       = (row[5]  || "").toString();
-  var equipment = (row[6]  || "").toString();
-  var position  = (row[8]  || "").toString();
-  var phone     = (row[9]  || "").toString();
-
-  var emailSent = sendDecisionEmail_(email, {
-    kind: "approved", name: name, room: room, date: date,
-    start: start, end: end, project: project, qty: qty
-  });
-
-  // ─ แจ้งเตือน Telegram (ระยะที่ 2) : แจ้งแม่บ้านให้เตรียมของ + พร้อมพิมพ์ PDF ─
-  var baseUrl = "";
-  try { baseUrl = ScriptApp.getService().getUrl(); } catch (e) { baseUrl = ""; }
-
-  var maidMsg = "🧺 <b>การจองห้องประชุมได้รับการอนุมัติแล้ว — กรุณาเตรียมการ</b>\n\n"
-    + "📍 ห้อง    : " + room + "\n"
-    + "📅 วันที่   : " + formatDateThaiLong_(date) + "\n"
-    + "⏰ เวลา    : " + start + " – " + end + " น.\n"
-    + "📌 เรื่อง   : " + project + "\n"
-    + "👤 ผู้จอง   : " + name + " (" + position + ")\n"
-    + "☎️ โทร     : " + phone + "\n"
-    + "👥 จำนวน   : " + qty + " คน\n"
-    + "🥤 น้ำดื่ม  : " + (equipment || "-") + "\n\n"
-    + "กรุณาเตรียมสถานที่และน้ำดื่มตามรายการข้างต้น พร้อมเข้าเว็บระบบเพื่อพิมพ์เอกสาร PDF ยืนยันการจอง (แท็บ \"ปฏิทิน & ประวัติการจอง\")"
-    + (baseUrl ? "\n🔗 " + baseUrl : "");
-
-  var maidSent = sendTelegramNotification_(maidMsg, TELEGRAM_MAEBAAN_CHAT_ID);
-  if (!maidSent) {
-    Logger.log("⚠️ แจ้งเตือนแม่บ้านไม่สำเร็จสำหรับแถว " + rowId + " — ดู log ด้านบนสำหรับรายละเอียด error จาก Telegram");
-  }
-
-  return {
-    success: true,
-    message: emailSent
-      ? "อนุมัติเรียบร้อยแล้ว และส่งอีเมลแจ้งผู้จองแล้ว"
-      : "อนุมัติเรียบร้อยแล้ว (ไม่สามารถส่งอีเมลได้ — โปรดตรวจสอบอีเมลผู้จองหรือสิทธิ์การส่งเมล)"
-  };
-}
-
-// ------------------------------------------------------------
-//  rejectReservation — admin ปฏิเสธ
-// ------------------------------------------------------------
-function rejectReservation(password, rowId, reason) {
-  if (password !== ADMIN_PASSWORD)
-    return { success: false, message: "รหัสผ่านไม่ถูกต้อง" };
-
-  var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);
-  var realRow = parseInt(rowId) + 1;
-  sheet.getRange(realRow, 13).setValue(STATUS_REJECTED);
-
-  var row = sheet.getRange(realRow, 1, 1, 13).getValues()[0];
-  var email   = (row[11] || "").toString();
-  var name    = (row[7]  || "").toString();
-  var project = (row[4]  || "").toString();
-  var date    = parseRowDate(row[0]);
-  var room    = (row[1]  || "").toString();
-  var start   = parseRowTime(row[2]);
-  var end     = parseRowTime(row[3]);
-
-  var emailSent = sendDecisionEmail_(email, {
-    kind: "rejected", name: name, room: room, date: date,
-    start: start, end: end, project: project, reason: reason
-  });
-
-  return {
-    success: true,
-    message: emailSent
-      ? "บันทึกการปฏิเสธเรียบร้อยแล้ว และส่งอีเมลแจ้งผู้จองแล้ว"
-      : "บันทึกการปฏิเสธเรียบร้อยแล้ว (ไม่สามารถส่งอีเมลได้ — โปรดตรวจสอบอีเมลผู้จองหรือสิทธิ์การส่งเมล)"
-  };
-}
-
-// ------------------------------------------------------------
 //  cancelReservation — admin ยกเลิกการจอง 1 รายการ
-//  (ใช้กับรายการที่ "รอพิจารณา" หรือ "อนุมัติ" ไปแล้วก็ได้ เผื่อลูกค้าแจ้งยกเลิกทีหลัง)
+//  (ใช้กับรายการที่ "อนุมัติ" ไปแล้วก็ได้ เผื่อลูกค้าแจ้งยกเลิกทีหลัง)
 // ------------------------------------------------------------
 function cancelReservation(password, rowId, reason) {
   if (password !== ADMIN_PASSWORD)
@@ -522,108 +464,178 @@ function cancelReservationGroup(password, groupId, reason) {
 }
 
 // ------------------------------------------------------------
-//  saveSignatureToDrive
+//  cancelReservationByRequester — ผู้จองยกเลิกการจองของตัวเอง
+//  ไม่ต้องผ่านการอนุมัติของ Admin ยืนยันตัวตนด้วยอีเมลที่ใช้ตอนจอง
+//  (ต้องตรงกับที่บันทึกไว้ในแถวนั้นเป๊ะๆ ถึงจะยกเลิกได้)
 // ------------------------------------------------------------
-function saveSignatureToFile_(base64Data, filename) {
-  var raw   = base64Data.replace(/^data:image\/\w+;base64,/, "");
-  var blob  = Utilities.newBlob(Utilities.base64Decode(raw), "image/png", filename);
-  var folder= DriveApp.getFolderById(SIGNATURE_FOLDER_ID);
-  var file  = folder.createFile(blob);
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  return "https://drive.google.com/uc?export=view&id=" + file.getId();
+function cancelReservationByRequester(id, email) {
+  var realRow = parseInt(id, 10) + 1;
+
+  var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);
+  if (isNaN(realRow) || realRow < 2 || realRow > sheet.getLastRow()) {
+    return { success: false, message: "ไม่พบรายการจองนี้" };
+  }
+
+  var row = sheet.getRange(realRow, 1, 1, 13).getValues()[0];
+  var storedEmail = (row[11] || "").toString().trim().toLowerCase();
+  var inputEmail  = (email || "").toString().trim().toLowerCase();
+  if (!storedEmail || storedEmail !== inputEmail) {
+    return { success: false, message: "อีเมลไม่ตรงกับที่ใช้ตอนจอง กรุณาตรวจสอบอีกครั้ง" };
+  }
+
+  var status = (row[12] || STATUS_PENDING).toString();
+  if (status === STATUS_CANCELLED) {
+    return { success: false, message: "รายการนี้ถูกยกเลิกไปแล้ว" };
+  }
+  if (status === STATUS_REJECTED) {
+    return { success: false, message: "รายการนี้ถูกปฏิเสธไปแล้ว ไม่สามารถยกเลิกซ้ำได้" };
+  }
+
+  sheet.getRange(realRow, 13).setValue(STATUS_CANCELLED);
+
+  var name    = (row[7] || "").toString();
+  var project = (row[4] || "").toString();
+  var date    = parseRowDate(row[0]);
+  var room    = (row[1] || "").toString();
+  var start   = parseRowTime(row[2]);
+  var end     = parseRowTime(row[3]);
+
+  sendDecisionEmail_(storedEmail, {
+    kind: "cancelled", name: name, room: room, date: date,
+    start: start, end: end, project: project,
+    reason: "ยกเลิกโดยผู้จองเอง"
+  });
+
+  // แจ้งเตือน admin (และแม่บ้านถ้าอนุมัติไปแล้ว) เผื่อกำลังเตรียมของอยู่
+  var cancelLines = [
+    "👤 ผู้จอง: " + name,
+    "📍 ห้อง: " + room,
+    "📅 วันที่: " + formatDateThaiLong_(date),
+    "⏰ เวลา: " + start + " – " + end + " น.",
+    "📌 เรื่อง: " + project
+  ];
+  var cancelMsg = buildFlexNoticeMessage_("🚫 ผู้จองยกเลิกการจองด้วยตัวเอง", cancelLines);
+  sendLineMessage_(LINE_ADMIN_TARGET_ID, [cancelMsg]);
+  if (status === STATUS_APPROVED) {
+    sendLineMessage_(LINE_MAEBAAN_TARGET_ID, [cancelMsg]);
+  }
+
+  return { success: true, message: "ยกเลิกการจองเรียบร้อยแล้ว" };
 }
 
 // ------------------------------------------------------------
-//  getSignatureBase64 — ดึงไฟล์ลายเซ็นจาก Drive แล้วแปลงเป็น base64 data URI
-//  ใช้แทนการ <img src="...drive.google.com..."> ตรงๆ ในหน้าเว็บ เพราะ
-//  ลิงก์ Drive ไม่ส่ง CORS header ทำให้ html2canvas ไม่สามารถอ่านรูปมาวาด
-//  ลงบน PDF ได้ (ได้ PDF ที่ไม่มีลายเซ็น) การแปลงเป็น base64 ฝั่งเซิร์ฟเวอร์
-//  แล้วส่งเป็น data URI ให้ฝั่ง client จะไม่มีปัญหา CORS/taint canvas อีก
+//  getSignatureBase64 — คืนค่าลายเซ็น (base64 data URI) ให้ตรงตามที่เก็บไว้
+//  ลายเซ็นถูกเก็บเป็น base64 data URI ตรงในเซลล์ชีตอยู่แล้ว (ดู saveReservation)
+//  ฟังก์ชันนี้เก็บไว้เพื่อความเข้ากันได้กับ index.html เดิม และรองรับรายการ
+//  เก่าที่เคยเก็บเป็นลิงก์ Drive ไว้ก่อนย้ายมาเก็บ base64 ตรงๆ (จะคืนค่าว่าง
+//  เพราะไม่ใช้ DriveApp แล้ว — ระบบจะพิมพ์ PDF แบบไม่มีลายเซ็นสำหรับรายการเก่ากลุ่มนี้)
 // ------------------------------------------------------------
 function getSignatureBase64(url) {
-  try {
-    if (!url) return "";
-    var m = url.match(/id=([a-zA-Z0-9_-]+)/) || url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    var fileId = m ? m[1] : "";
-    if (!fileId) return "";
-
-    var file = DriveApp.getFileById(fileId);
-    var blob = file.getBlob();
-    var mimeType = blob.getContentType() || "image/png";
-    var base64 = Utilities.base64Encode(blob.getBytes());
-    return "data:" + mimeType + ";base64," + base64;
-  } catch (e) {
-    Logger.log("getSignatureBase64 error: " + e);
-    return "";
-  }
+  if (url && url.startsWith("data:image")) return url;
+  return "";
 }
 
 // ------------------------------------------------------------
-//  sendTelegramNotification_ — ส่งข้อความแจ้งเตือนไปยัง chat ที่ระบุ
-//  chatId: ถ้าไม่ระบุ จะใช้ TELEGRAM_CHAT_ID (admin) เป็นค่าเริ่มต้น
-//  คืนค่า true/false บอกผลว่าส่งสำเร็จจริงหรือไม่ (เช็คจาก response ของ Telegram)
-//  พร้อม log รายละเอียด error ให้เห็นสาเหตุจริงเมื่อส่งไม่สำเร็จ
+//  sendLineMessage_ — push ข้อความ (array ของ LINE message object) ไปยัง
+//  userId/groupId ที่ระบุ ผ่าน LINE Messaging API
+//  คืนค่า true/false บอกผลว่าส่งสำเร็จจริงหรือไม่ พร้อม log รายละเอียด
+//  error ให้เห็นสาเหตุจริงเมื่อส่งไม่สำเร็จ
 // ------------------------------------------------------------
-function sendTelegramNotification_(text, chatId) {
+function sendLineMessage_(targetId, messages) {
   try {
-    var targetChatId = chatId || TELEGRAM_CHAT_ID;
-    if (!targetChatId) {
-      Logger.log("sendTelegramNotification_: ไม่มี chat_id ปลายทาง ข้ามการส่ง");
+    if (!targetId) {
+      Logger.log("sendLineMessage_: ไม่มี userId/groupId ปลายทาง ข้ามการส่ง");
       return false;
     }
-    var url = "https://api.telegram.org/bot" + TELEGRAM_BOT_TOKEN + "/sendMessage";
-    var payload = { chat_id: targetChatId, text: text, parse_mode: "HTML" };
-    var response = UrlFetchApp.fetch(url, {
+    if (!LINE_CHANNEL_ACCESS_TOKEN) {
+      Logger.log("sendLineMessage_: ยังไม่ได้ตั้งค่า LINE_CHANNEL_ACCESS_TOKEN");
+      return false;
+    }
+    var response = UrlFetchApp.fetch("https://api.line.me/v2/bot/message/push", {
       method: "post",
       contentType: "application/json",
-      payload: JSON.stringify(payload),
-      muteHttpExceptions: true   // ไม่ throw exception แต่เราจะเช็ค response เองด้านล่าง
+      headers: { Authorization: "Bearer " + LINE_CHANNEL_ACCESS_TOKEN },
+      payload: JSON.stringify({ to: targetId, messages: messages }),
+      muteHttpExceptions: true
     });
 
     var code = response.getResponseCode();
-    var body = response.getContentText();
-
     if (code !== 200) {
-      // ★ ตรงนี้คือส่วนที่ขาดไปก่อนหน้านี้ — ทำให้มองไม่เห็นสาเหตุที่แม่บ้านไม่ได้รับแจ้งเตือน
-      Logger.log("sendTelegramNotification_ FAILED chat_id=" + targetChatId
-        + " httpCode=" + code + " response=" + body);
+      Logger.log("sendLineMessage_ FAILED to=" + targetId
+        + " httpCode=" + code + " response=" + response.getContentText());
       return false;
     }
 
-    Logger.log("sendTelegramNotification_ ส่งสำเร็จไปยัง chat_id=" + targetChatId);
+    Logger.log("sendLineMessage_ ส่งสำเร็จไปยัง " + targetId);
     return true;
 
-  } catch(e) {
-    Logger.log("Telegram error: " + e);
+  } catch (e) {
+    Logger.log("LINE error: " + e);
     return false;
   }
 }
 
-// ------------------------------------------------------------
-//  testTelegramMaebaan — ฟังก์ชันทดสอบ (ไม่เกี่ยวกับระบบจอง)
-//  ใช้สำหรับดีบักโดยเฉพาะ: เปิด Apps Script editor แล้วเลือกรัน
-//  ฟังก์ชันนี้ (Run > testTelegramMaebaan) จากนั้นดู Execution log
-//  (View > Logs หรือ Ctrl+Enter) จะเห็น error จริงจาก Telegram เช่น
-//  - "Bad Request: chat not found" → chat_id ผิด หรือบอทไม่เคยถูกเพิ่มเข้ากลุ่มนี้
-//  - "Forbidden: bot was kicked from the group chat" → บอทถูกเตะออกจากกลุ่ม
-//  - "Bad Request: group chat was upgraded to a supergroup chat"
-//      → กลุ่มถูกอัปเกรดเป็น Supergroup แล้ว ID เปลี่ยนไปเป็นรูปแบบ
-//        -100xxxxxxxxxx ต้องนำ migrate_to_chat_id ใน response ไปตั้งเป็น
-//        TELEGRAM_MAEBAAN_CHAT_ID ตัวใหม่
-// ------------------------------------------------------------
-function testTelegramMaebaan() {
-  var ok = sendTelegramNotification_("🔧 ทดสอบการแจ้งเตือนไปยังกลุ่มแม่บ้าน (ลบข้อความนี้ทิ้งได้)", TELEGRAM_MAEBAAN_CHAT_ID);
-  Logger.log("ผลการทดสอบส่งไปยังกลุ่มแม่บ้าน: " + (ok ? "✅ สำเร็จ" : "❌ ไม่สำเร็จ — ดู log ด้านบนเพื่อดูสาเหตุจาก Telegram"));
+function sendLineTextMessage_(targetId, text) {
+  return sendLineMessage_(targetId, [{ type: "text", text: text }]);
 }
 
 // ------------------------------------------------------------
-//  saveReservation — บันทึกพร้อมส่ง Telegram (ระยะที่ 1 แจ้ง admin)
+//  buildFlexNoticeMessage_ — สร้าง LINE Flex Message (การ์ดแจ้งเตือน)
+//  lines: array ของบรรทัดข้อความ (string ธรรมดา)
+//  approveUrl/rejectUrl: ถ้ามีทั้งคู่ จะมีปุ่ม "อนุมัติ/ปฏิเสธ" ต่อท้าย
+// ------------------------------------------------------------
+function buildFlexNoticeMessage_(title, lines, approveUrl, rejectUrl) {
+  var bubble = {
+    type: "bubble",
+    header: {
+      type: "box", layout: "vertical", backgroundColor: "#4f46e5", paddingAll: "16px",
+      contents: [{ type: "text", text: title, weight: "bold", size: "md", color: "#ffffff", wrap: true }]
+    },
+    body: {
+      type: "box", layout: "vertical", spacing: "sm", paddingAll: "16px",
+      contents: lines.map(function(t) {
+        return { type: "text", text: t, size: "sm", color: "#334155", wrap: true };
+      })
+    }
+  };
+
+  if (approveUrl && rejectUrl) {
+    bubble.footer = {
+      type: "box", layout: "horizontal", spacing: "sm", paddingAll: "12px",
+      contents: [
+        { type: "button", style: "primary", color: "#16a34a", height: "sm",
+          action: { type: "uri", label: "อนุมัติ", uri: approveUrl } },
+        { type: "button", style: "primary", color: "#dc2626", height: "sm",
+          action: { type: "uri", label: "ปฏิเสธ", uri: rejectUrl } }
+      ]
+    };
+  }
+
+  return { type: "flex", altText: title.substring(0, 400), contents: bubble };
+}
+
+// ------------------------------------------------------------
+//  testLineMaebaan — ฟังก์ชันทดสอบ (ไม่เกี่ยวกับระบบจอง)
+//  ใช้สำหรับดีบักโดยเฉพาะ: เปิด Apps Script editor แล้วเลือกรันฟังก์ชันนี้
+//  (Run > testLineMaebaan) จากนั้นดู Execution log (View > Logs) จะเห็น
+//  error จริงจาก LINE ถ้าส่งไม่สำเร็จ (เช่น target ผิด, token หมดอายุ)
+// ------------------------------------------------------------
+function testLineMaebaan() {
+  var ok = sendLineTextMessage_(LINE_MAEBAAN_TARGET_ID, "🔧 ทดสอบการแจ้งเตือนไปยังแม่บ้าน (ลบข้อความนี้ทิ้งได้)");
+  Logger.log("ผลการทดสอบส่งไปยังแม่บ้าน: " + (ok ? "✅ สำเร็จ" : "❌ ไม่สำเร็จ — ดู log ด้านบนเพื่อดูสาเหตุจาก LINE"));
+}
+
+// ------------------------------------------------------------
+//  saveReservation — บันทึกพร้อมส่ง LINE (ระยะที่ 1 แจ้ง admin)
 // ------------------------------------------------------------
 function saveReservation(formData) {
   try {
     var room = findRoom_(formData.room);
     if (!room) {
       return { success: false, message: "⚠️ ไม่พบห้องประชุมที่เลือก กรุณาเลือกห้องจากรายการ" };
+    }
+    if (room.locked) {
+      return { success: false, message: "⚠️ ห้อง " + room.name + " ปิดใช้งานชั่วคราว ไม่สามารถจองได้" };
     }
 
     var qty = parseInt(formData.participants, 10) || 0;
@@ -669,13 +681,12 @@ function saveReservation(formData) {
       };
     }
 
-    var signatureUrl = "";
-    if (formData.signature && formData.signature.startsWith("data:image")) {
-      var fname = "sig_" + formData.date + "_"
-        + (formData.requester_name || "").replace(/\s/g,"_")
-        + "_" + Date.now() + ".png";
-      signatureUrl = saveSignatureToFile_(formData.signature, fname);
-    }
+    // เก็บลายเซ็นเป็น base64 data URI ตรงในเซลล์ชีตเลย (ไม่ผ่าน Google Drive)
+    // เพื่อไม่ให้ระบบจองต้องพึ่งสิทธิ์ DriveApp ซึ่งมักติดปัญหา authorization/สิทธิ์
+    // ขององค์กรที่ deploy — คอลัมน์นี้รองรับได้ถึง 50,000 ตัวอักษรต่อเซลล์
+    var signatureUrl = (formData.signature && formData.signature.startsWith("data:image"))
+      ? formData.signature
+      : "";
 
     var eq = [];
     if (formData.eq_water) eq.push("น้ำดื่ม: " + (formData.eq_water_qty || 0) + " ขวด");
@@ -684,6 +695,7 @@ function saveReservation(formData) {
 
     // column: A=date, B=room, C=start, D=end, E=project, F=qty, G=equipment,
     //         H=name, I=position, J=phone, K=signatureUrl, L=email, M=status, N=repeatGroupId
+    // ไม่มีขั้นตอนรออนุมัติแล้ว — บันทึกด้วยสถานะ "อนุมัติ" ทันที
     dates.forEach(function(dateStr) {
       sheet.appendRow([
         dateStr,
@@ -698,72 +710,77 @@ function saveReservation(formData) {
         formData.phone,
         signatureUrl,
         formData.email || "",   // ← column L
-        STATUS_PENDING,          // ← column M
+        STATUS_APPROVED,         // ← column M
         groupId                  // ← column N
       ]);
     });
 
-    // ─ แจ้ง Telegram (ระยะที่ 1) : แจ้ง admin ว่ามีคำขอจองใหม่ ─
     var dateLine = dates.length > 1
       ? dates.map(function(x) { return formatDateThaiLong_(x); }).join(", ")
       : formData.date;
-    var msg = "🔔 <b>มีคำขอจองห้องประชุมใหม่" + (dates.length > 1 ? " (จองซ้ำ " + dates.length + " ครั้ง)" : "") + "!</b>\n\n"
-      + "👤 ผู้จอง : " + formData.requester_name + "\n"
-      + "📍 ห้อง   : " + formData.room + "\n"
-      + "📅 วันที่  : " + dateLine + "\n"
-      + "⏰ เวลา   : " + formData.start_time + " – " + formData.end_time + " น.\n"
-      + "📌 เรื่อง  : " + formData.project_name + "\n"
-      + "👥 จำนวน  : " + formData.participants + " คน\n"
-      + "🥤 น้ำดื่ม : " + (eq.join(", ") || "-") + "\n"
-      + "📧 อีเมล  : " + (formData.email || "-") + "\n\n"
-      + "กรุณาเข้าหน้า Admin เพื่อพิจารณา";
-    sendTelegramNotification_(msg, TELEGRAM_CHAT_ID);
+    var dateLineDisplay = dates.length > 1 ? dateLine : formatDateThaiLong_(formData.date);
+
+    // ─ ส่งอีเมลยืนยันการจองให้ผู้จองทันที ─
+    var emailSent = sendDecisionEmail_(formData.email, {
+      kind: "approved", name: formData.requester_name, room: formData.room,
+      date: formData.date, dateDisplay: dateLineDisplay,
+      start: formData.start_time, end: formData.end_time,
+      project: formData.project_name, qty: formData.participants
+    });
+
+    // ─ แจ้ง LINE ให้ผู้ดูแลระบบทราบ (แจ้งเตือนอย่างเดียว ไม่มีปุ่มอนุมัติ/ปฏิเสธ
+    //   เพราะการจองได้รับการยืนยันทันทีโดยไม่ต้องรอการอนุมัติแล้ว) ─
+    var bookingLines = [
+      "👤 ผู้จอง: " + formData.requester_name,
+      "📍 ห้อง: " + formData.room,
+      "📅 วันที่: " + dateLine,
+      "⏰ เวลา: " + formData.start_time + " – " + formData.end_time + " น.",
+      "📌 เรื่อง: " + formData.project_name,
+      "👥 จำนวน: " + formData.participants + " คน",
+      "🥤 น้ำดื่ม: " + (eq.join(", ") || "-"),
+      "📧 อีเมล: " + (formData.email || "-")
+    ];
+    var bookingTitle = "🔔 มีการจองห้องประชุมใหม่ (ยืนยันอัตโนมัติ)" + (dates.length > 1 ? " — จองซ้ำ " + dates.length + " ครั้ง" : "");
+    var bookingMsg = buildFlexNoticeMessage_(bookingTitle, bookingLines);
+    sendLineMessage_(LINE_ADMIN_TARGET_ID, [bookingMsg]);
+
+    // ─ แจ้ง LINE ให้แม่บ้านเตรียมของทันที (เดิมเกิดขึ้นตอน admin กดอนุมัติ) ─
+    var baseUrl = "";
+    try { baseUrl = ScriptApp.getService().getUrl(); } catch (e) { baseUrl = ""; }
+
+    var maidLines = [
+      "📍 ห้อง: " + formData.room,
+      "📅 วันที่: " + dateLine,
+      "⏰ เวลา: " + formData.start_time + " – " + formData.end_time + " น.",
+      "📌 เรื่อง: " + formData.project_name,
+      "👤 ผู้จอง: " + formData.requester_name + " (" + formData.position + ")",
+      "☎️ โทร: " + formData.phone,
+      "👥 จำนวน: " + formData.participants + " คน",
+      "🥤 น้ำดื่ม: " + (eq.join(", ") || "-"),
+      "กรุณาเตรียมสถานที่และน้ำดื่มตามรายการข้างต้น พร้อมเข้าเว็บระบบเพื่อพิมพ์เอกสาร PDF ยืนยันการจอง (แท็บ \"ปฏิทิน & ประวัติการจอง\")"
+    ];
+    if (baseUrl) maidLines.push("🔗 " + baseUrl);
+
+    var maidMsg = buildFlexNoticeMessage_("🧺 มีการจองห้องประชุมใหม่ — กรุณาเตรียมการ", maidLines);
+    var maidSent = sendLineMessage_(LINE_MAEBAAN_TARGET_ID, [maidMsg]);
+    if (!maidSent) {
+      Logger.log("⚠️ แจ้งเตือนแม่บ้านไม่สำเร็จ — ดู log ด้านบนสำหรับรายละเอียด error จาก LINE");
+    }
 
     return {
       success: true,
-      message: dates.length > 1
-        ? "🎉 บันทึกการจองห้องประชุมแบบซ้ำเรียบร้อยแล้ว (" + dates.length + " ครั้ง)! กรุณารอการอนุมัติจากผู้ดูแลระบบ"
-        : "🎉 บันทึกการจองห้องประชุมเรียบร้อยแล้ว! กรุณารอการอนุมัติจากผู้ดูแลระบบ"
+      message: (dates.length > 1
+        ? "🎉 จองห้องประชุมสำเร็จ (" + dates.length + " ครั้ง)!"
+        : "🎉 จองห้องประชุมสำเร็จ!")
+        + " การจองของท่านได้รับการยืนยันทันที ไม่ต้องรอการอนุมัติ"
+        + (emailSent ? "" : " (ส่งอีเมลยืนยันไม่สำเร็จ กรุณาตรวจสอบอีเมลที่กรอกไว้)")
     };
   } catch (err) {
     return { success: false, message: "เกิดข้อผิดพลาด: " + err.toString() };
   }
 }
 
-
-
-// ------------------------------------------------------------
-//  getTelegramUpdates — ตัวช่วยหา chat_id ที่ถูกต้องของกลุ่มแม่บ้าน
-//  วิธีใช้:
-//  1) เพิ่มบอทเข้ากลุ่มแม่บ้าน แล้วพิมพ์ข้อความอะไรก็ได้ในกลุ่มนั้น (เช่น "test")
-//  2) เปิด Apps Script editor แล้วเลือกรันฟังก์ชันนี้ (Run > getTelegramUpdates)
-//  3) ดู Logger log จะเห็น chat.id จริงของทุกแชทที่บอทเห็นข้อความล่าสุด
-//     คัดลอกค่านั้น (รวมเครื่องหมายลบ) ไปใส่ TELEGRAM_MAEBAAN_CHAT_ID
-// ------------------------------------------------------------
-function getTelegramUpdates() {
-  try {
-    var url = "https://api.telegram.org/bot" + TELEGRAM_BOT_TOKEN + "/getUpdates";
-    var response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-    var data = JSON.parse(response.getContentText());
-    if (!data.ok) {
-      Logger.log("getUpdates error: " + response.getContentText());
-      return;
-    }
-    if (!data.result.length) {
-      Logger.log("ไม่พบ update ล่าสุด — กรุณาส่งข้อความในกลุ่มเป้าหมายก่อน แล้วรันใหม่ภายใน 24 ชม.");
-      return;
-    }
-    data.result.forEach(function (u) {
-      var chat = (u.message && u.message.chat) || (u.my_chat_member && u.my_chat_member.chat);
-      if (chat) {
-        Logger.log("chat.id = " + chat.id + " | type = " + chat.type + " | ชื่อ = " + (chat.title || chat.first_name || ""));
-      }
-    });
-  } catch (e) {
-    Logger.log("getTelegramUpdates error: " + e);
-  }
-}
-
+// (หา userId/groupId ของ LINE ได้จากคอมเมนต์เหนือฟังก์ชัน doPost ด้านบนแทน)
 
 
 
@@ -783,11 +800,8 @@ function getTelegramUpdates() {
 
 
 function forceAuthorize() {
-  const ss     = SpreadsheetApp.getActiveSpreadsheet();
-  const folder = DriveApp.getRootFolder();
-  const doc    = DocumentApp.create('_auth_test_');
-  DriveApp.getFileById(doc.getId()).setTrashed(true);
-  UrlFetchApp.fetch("https://api.telegram.org");
+  SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);
+  UrlFetchApp.fetch("https://api.line.me");
   MailApp.getRemainingDailyQuota();
   Logger.log('Authorization complete');
 }

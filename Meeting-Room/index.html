@@ -91,6 +91,7 @@
       background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;
     }
     input:disabled,select:disabled{background:#f8fafc;color:#94a3b8;cursor:not-allowed;}
+    input[readonly]{background:#f8fafc;color:#475569;font-weight:600;cursor:default;}
 
     /* Equipment */
     .equipment-box{
@@ -165,6 +166,13 @@
     }
     .btn-pdf:hover{background:#4338ca;}
 
+    .btn-cancel-own{
+      display:inline-flex;align-items:center;gap:5px;background:#fff;color:#dc2626;border:1.5px solid #fecaca;
+      padding:6px 14px;border-radius:8px;font-size:.8rem;font-family:'Sarabun',sans-serif;
+      font-weight:500;cursor:pointer;transition:all .2s;white-space:nowrap;
+    }
+    .btn-cancel-own:hover{background:#fef2f2;border-color:#fca5a5;}
+
     /* History pagination */
     .history-pagination{
       display:flex;align-items:center;justify-content:center;gap:16px;
@@ -227,11 +235,22 @@
           <label for="room">ชื่อห้องที่ต้องการจอง <span class="req">*</span></label>
           <select id="room" name="room" required onchange="onRoomChange()">
             <option value="">— เลือกห้องประชุม —</option>
+            <? var currentFloor = null; ?>
             <? for (var ri = 0; ri < ROOMS.length; ri++) { ?>
-            <option value="<?= ROOMS[ri].name ?>" data-seats="<?= ROOMS[ri].seats ?>"><?= ROOMS[ri].name ?> (ที่นั่ง <?= ROOMS[ri].seats ?> ที่)</option>
+              <? var r = ROOMS[ri]; ?>
+              <? if (r.floor !== currentFloor) { ?>
+                <? if (currentFloor !== null) { ?></optgroup><? } ?>
+                <? currentFloor = r.floor; ?>
+                <optgroup label="ชั้น <?= currentFloor ?>">
+              <? } ?>
+              <option value="<?= r.name ?>" data-seats="<?= r.seats ?>"<?= r.locked ? " disabled" : "" ?>><?= r.name ?><?= r.locked ? " (ปิดใช้งานชั่วคราว)" : "" ?></option>
             <? } ?>
+            <? if (currentFloor !== null) { ?></optgroup><? } ?>
           </select>
-          <p id="roomCapHint" style="font-size:.78rem;color:#64748b;margin-top:6px;"></p>
+        </div>
+        <div class="form-group">
+          <label for="room_seats">จำนวนที่นั่ง</label>
+          <input type="text" id="room_seats" readonly placeholder="เลือกห้องก่อน">
         </div>
         <div class="form-group">
           <label for="date">วันที่ต้องการใช้งาน <span class="req">*</span></label>
@@ -349,11 +368,12 @@
             <th>โครงการ / ผู้จอง</th>
             <th>สถานะ</th>
             <th>เอกสาร</th>
+            <th>จัดการ</th>
           </tr>
         </thead>
         <tbody id="history-tbody">
           <tr>
-            <td colspan="6" style="text-align:center;color:#94a3b8;padding:24px">
+            <td colspan="7" style="text-align:center;color:#94a3b8;padding:24px">
               กำลังโหลดข้อมูล…
             </td>
           </tr>
@@ -390,7 +410,14 @@
 // ═══════════════════════════════════════════════════════════
 //  State
 // ═══════════════════════════════════════════════════════════
-const ALL_SLOTS = ["08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00"];
+const ALL_SLOTS = (function() {
+  const slots = [];
+  for (let h = 8; h <= 17; h++) {
+    slots.push(String(h).padStart(2, '0') + ':00');
+    if (h < 17) slots.push(String(h).padStart(2, '0') + ':30');
+  }
+  return slots;
+})();
 const HISTORY_PAGE_SIZE = 5;
 let bookedData         = [];
 let calendar            = null;
@@ -460,7 +487,7 @@ const ROOM_COLORS = {
 // ═══════════════════════════════════════════════════════════
 function loadCalendarAndHistory() {
   const tbody = document.getElementById('history-tbody');
-  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:24px">กำลังโหลดข้อมูล…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:24px">กำลังโหลดข้อมูล…</td></tr>';
 
   google.script.run
     .withSuccessHandler(function(events) {
@@ -479,7 +506,7 @@ function loadCalendarAndHistory() {
       renderHistoryPage();
     })
     .withFailureHandler(function(err) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#ef4444;padding:24px">โหลดข้อมูลไม่สำเร็จ: '
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#ef4444;padding:24px">โหลดข้อมูลไม่สำเร็จ: '
         + ((err && err.message) ? err.message : String(err)) + '</td></tr>';
     })
     .getAllReservations();
@@ -543,7 +570,7 @@ function renderHistoryPage() {
   tbody.innerHTML = '';
 
   if (!globalReservations.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:24px">ไม่พบข้อมูลการจองย้อนหลัง</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:24px">ไม่พบข้อมูลการจองย้อนหลัง</td></tr>';
     updateHistoryPaginationUI(1, 1);
     return;
   }
@@ -571,6 +598,11 @@ function renderHistoryPage() {
       ? `<button class="btn-pdf" onclick="downloadPDF(${ev.id})"><i class='bx bx-file'></i> PDF</button>`
       : `<span style="color:#94a3b8;font-size:.78rem">—</span>`;
 
+    const cancellable = status === 'รอพิจารณา' || status === 'อนุมัติ';
+    const cancelCell = cancellable
+      ? `<button class="btn-cancel-own" onclick="cancelMyBooking(${ev.id})"><i class='bx bx-x-circle'></i> ยกเลิก</button>`
+      : `<span style="color:#94a3b8;font-size:.78rem">—</span>`;
+
     tbody.insertAdjacentHTML('beforeend', `
       <tr>
         <td>${formatDateTH(ev.date)}</td>
@@ -582,6 +614,7 @@ function renderHistoryPage() {
         </td>
         <td><span class="tag-status ${statusClass}">${statusLabel}</span></td>
         <td>${docCell}</td>
+        <td>${cancelCell}</td>
       </tr>`);
   });
 
@@ -600,14 +633,61 @@ function changeHistoryPage(delta) {
 }
 
 // ═══════════════════════════════════════════════════════════
+//  Cancel My Booking — ผู้จองยกเลิกการจองของตัวเอง (ไม่ต้องรอ Admin)
+//  ยืนยันตัวตนด้วยอีเมลที่ใช้ตอนจอง เพื่อกันคนอื่นยกเลิกแทนกัน
+// ═══════════════════════════════════════════════════════════
+function cancelMyBooking(id) {
+  const ev = globalReservations.find(x => x.id === id);
+  if (!ev) return;
+
+  Swal.fire({
+    title: 'ยืนยันการยกเลิกการจอง?',
+    html: `<div style="text-align:left;font-size:14px;line-height:1.8">
+             <b>ห้อง:</b> ${ev.room}<br>
+             <b>วันที่:</b> ${formatDateTH(ev.date)}<br>
+             <b>เวลา:</b> ${ev.start} – ${ev.end} น.
+           </div>
+           <p style="margin-top:14px;font-size:13px;color:#64748b">กรอกอีเมลที่ใช้ตอนจอง เพื่อยืนยันว่าเป็นผู้จองจริง</p>`,
+    input: 'email',
+    inputPlaceholder: 'อีเมลที่ใช้ตอนจอง',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'ยืนยันยกเลิก',
+    cancelButtonText: 'ปิด',
+    confirmButtonColor: '#dc2626',
+    cancelButtonColor: '#94a3b8',
+    inputValidator: (value) => !value ? 'กรุณากรอกอีเมล' : undefined
+  }).then(r => {
+    if (!r.isConfirmed) return;
+    Swal.fire({ title: 'กำลังยกเลิก…', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res.success) {
+          Swal.fire({ icon: 'success', title: 'ยกเลิกเรียบร้อยแล้ว', text: res.message, confirmButtonColor: '#4f46e5' })
+            .then(() => loadCalendarAndHistory());
+        } else {
+          Swal.fire({ icon: 'error', title: 'ยกเลิกไม่สำเร็จ', text: res.message, confirmButtonColor: '#ef4444' });
+        }
+      })
+      .withFailureHandler(function(err) {
+        Swal.fire({
+          icon: 'error', title: 'เกิดข้อผิดพลาด',
+          text: (err && err.message) ? err.message : String(err),
+          confirmButtonColor: '#ef4444'
+        });
+      })
+      .cancelReservationByRequester(id, r.value);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
 //  Room Change — แสดงความจุห้อง + โหลดเวลาว่าง
 // ═══════════════════════════════════════════════════════════
 function onRoomChange() {
   const sel  = document.getElementById('room');
   const opt  = sel.options[sel.selectedIndex];
   const seats = opt ? opt.getAttribute('data-seats') : null;
-  document.getElementById('roomCapHint').textContent =
-    seats ? `ห้องนี้รองรับผู้เข้าร่วมสูงสุด ${seats} ที่นั่ง` : '';
+  document.getElementById('room_seats').value = seats ? `${seats} ที่นั่ง` : '';
   checkAvailableSlots();
 }
 
@@ -794,7 +874,7 @@ function handleFormSubmit(e) {
           document.getElementById('sigHint').classList.remove('hidden');
           document.getElementById('start_time').disabled = true;
           document.getElementById('end_time').disabled   = true;
-          document.getElementById('roomCapHint').textContent = '';
+          document.getElementById('room_seats').value = '';
           toggleRepeatOptions();
         });
       } else {
@@ -826,7 +906,11 @@ function downloadPDF(id) {
     allowOutsideClick: false, didOpen: () => Swal.showLoading()
   });
 
-  if (data.signatureUrl) {
+  if (data.signatureUrl && data.signatureUrl.startsWith('data:image')) {
+    // ลายเซ็นเก็บเป็น base64 data URI ตรงในข้อมูลอยู่แล้ว ใช้ได้ทันทีไม่ต้องเรียกเซิร์ฟเวอร์
+    buildAndSavePDF(data, data.signatureUrl);
+  } else if (data.signatureUrl) {
+    // รายการเก่าก่อนเปลี่ยนมาเก็บ base64 ตรงๆ — ลองขอจากเซิร์ฟเวอร์ ถ้าไม่ได้ก็พิมพ์แบบไม่มีลายเซ็น
     google.script.run
       .withSuccessHandler(function(base64img) {
         buildAndSavePDF(data, base64img || '');
