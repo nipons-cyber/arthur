@@ -94,14 +94,18 @@ button,select{font:inherit;color:inherit}
 .route .done .dot{background:var(--ok);border-color:var(--ok)}
 .route .now .dot{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 25%,transparent)}
 .route .skip{color:var(--muted);text-decoration:line-through}
+.route .sub{padding-left:22px;font-size:12px}
+.route .sub .dot{width:10px;height:10px}
 .back{align-self:flex-start;border:0;background:none;color:var(--accent);cursor:pointer;padding:0;font-size:13px}
 
 /* station rail */
-.rail{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px;margin-top:12px}
+.rail{display:grid;grid-template-columns:repeat(13,minmax(0,1fr));gap:6px;margin-top:12px}
+.stc.assy{background:color-mix(in srgb,#8A6BD1 9%,var(--panel));border-style:dashed}
+.stc.assy .n{color:#8A6BD1}
 .stc{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:7px 8px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:4px;min-width:0;border-top:3px solid var(--ok)}
 .stc.warn{border-top-color:var(--warn)} .stc.bad{border-top-color:var(--bad)}
 .stc[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:-1px}
-.stc .n{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+.stc .n{font-family:var(--font-mono);font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .stc .t{font-size:12px;font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .stc .q{font-family:var(--font-mono);font-size:11px;color:var(--muted);display:flex;justify-content:space-between}
 
@@ -130,7 +134,7 @@ tr.clk{cursor:pointer} tr.clk:hover td{background:var(--panel-2)}
 @media (max-width: 1100px){
   .console{grid-template-columns:1fr}
   .side{max-height:none}
-  .rail{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .rail{grid-template-columns:repeat(auto-fill,minmax(118px,1fr))}
 }
 @media (max-width: 560px){
   .stage{min-height:380px}
@@ -146,7 +150,7 @@ tr.clk{cursor:pointer} tr.clk:hover td{background:var(--panel-2)}
 <header class="top">
   <div class="brand">
     <h1>Pipe Workshop ERP 3D</h1>
-    <div class="sub">SPK Distribution · Stainless Steel Pipe Fabrication (SS304L / SS316L) · ผังกระบวนการตาม QP-PIPE-01 ทั้ง 10 กระบวนการ</div>
+    <div class="sub">SPK Distribution · Stainless Steel Pipe Fabrication (SS304L / SS316L) · สายหลัก 10 สถานี + สาย Assembly Spool (A1–A3) เข้า Final Inspection</div>
   </div>
   <div class="controls">
     <button class="btn primary" id="playBtn" type="button">❚❚ หยุดชั่วคราว</button>
@@ -194,19 +198,30 @@ const $ = s => document.querySelector(s);
 const tok = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-/* ---------- Process master data (QP-PIPE-01 §5.1–5.2) ---------- */
+/* ---------- Process master data (QP-PIPE-01, re-sequenced for the workshop floor) ----------
+   Main line : 01 → 02 → 03 → 04 Groove (grooved spools only) → 05 Welding → 06 → 07 → 08 Flushing→Passivation → 09 Final Inspection → 10
+   Assembly  : after 08, assembly spools branch to A1 → A2 → A3 and rejoin at 09 Final Inspection */
 const ST = [
-  {no:'01', th:'ตรวจรับและจัดเก็บวัตถุดิบ', short:'รับ/จัดเก็บวัตถุดิบ', en:'Material Acceptance & Storage', wi:'WI-PIPE-01', qc:'WI-QC-PIPE-01', qr:['01-1','01-2','01-3','01-4','01-5'], cap:3, t:1.5, kind:'store', ctrl:'Hold — ตรวจ MTC / Heat No. ก่อนปล่อยเข้าผลิต', pic:'Storekeeper + QC Inspector'},
-  {no:'02', th:'การตัดท่อ', short:'ตัดท่อ', en:'Cutting', wi:'WI-PIPE-02', qc:'WI-QC-PIPE-02', qr:['02-1','02-2','02-3','02-4'], cap:2, t:1.2, kind:'saw', ctrl:'ตรวจความยาว/มุมตัด ตาม Cutting List', pic:'Supervisor + Fitter'},
-  {no:'03', th:'การเตรียมประกอบท่อ', short:'Pre-fab / Fit-up', en:'Pre-fabrication (End prep, Fit-up, Tack)', wi:'WI-PIPE-03', qc:'WI-QC-PIPE-03', qr:['03-1','03-2','03-3','03-4'], cap:3, t:2.6, kind:'table', ctrl:'Fit-up inspection — ระยะ Gap / Alignment', pic:'Fitter + QC Inspector'},
-  {no:'04', th:'การเชื่อม', short:'เชื่อม GTAW', en:'Welding (GTAW + purge)', wi:'WI-PIPE-04', qc:'WI-QC-PIPE-04', qr:['04-1','04-2','04-3','03-3','03-4'], cap:4, t:4.5, kind:'weld', ctrl:'VT/PT 100% ตาม WPS ที่รับรอง', pic:'Welder (WPQ) + QC Inspector'},
-  {no:'05', th:'การต่อท่อแบบร่องรัด', short:'ขึ้นร่อง Groove', en:'Groove (Mechanical Grooved) Joining', wi:'WI-PIPE-05', qc:'WI-QC-PIPE-05', qr:['05-1'], cap:2, t:1.4, kind:'groove', ctrl:'ตรวจขนาดร่องตามสเปคผู้ผลิต Coupling', pic:'Operator'},
-  {no:'06', th:'การตรวจสอบขนาด', short:'ตรวจสอบขนาด', en:'Dimensional Verification', wi:'WI-PIPE-06', qc:'WI-QC-PIPE-06', qr:['06-1','06-2'], cap:2, t:1.0, kind:'cmm', ctrl:'Hold Point — เทียบแบบ Isometric / GA', pic:'QC Inspector'},
-  {no:'07', th:'การทดสอบแรงดัน', short:'ทดสอบแรงดัน', en:'Pressure Test (Hydro / Pneumatic)', wi:'WI-PIPE-07', qc:'WI-QC-PIPE-07', qr:['07-1'], cap:2, t:2.6, kind:'press', ctrl:'Witness Point — แจ้งลูกค้าล่วงหน้า', pic:'QC Manager'},
-  {no:'08', th:'การล้างและทำความสะอาดท่อ', short:'Flushing', en:'Flushing & Cleaning', wi:'WI-PIPE-08', qc:'WI-QC-PIPE-08', qr:['08-1','08-2'], cap:2, t:1.8, kind:'flush', ctrl:'ตรวจคุณภาพน้ำ / ความสะอาดภายใน', pic:'QC Inspector'},
-  {no:'09', th:'การทำ Passivation', short:'Passivation', en:'Passivation', wi:'WI-PIPE-09', qc:'WI-QC-PIPE-09', qr:['09-1','09-2','09-3'], cap:2, t:2.6, kind:'bath', ctrl:'Ferroxyl test — ไม่มี Free Iron', pic:'QC Inspector'},
-  {no:'10', th:'การบรรจุหีบห่อ', short:'บรรจุหีบห่อ', en:'Packaging', wi:'WI-PIPE-10', qc:'WI-QC-PIPE-10', qr:['10-1','10-2'], cap:2, t:1.3, kind:'pack', ctrl:'Hold Point — Final inspection ก่อนส่ง', pic:'Packing Lead + QC'},
+  {no:'01', th:'ตรวจรับและจัดเก็บวัตถุดิบ', short:'รับ/จัดเก็บวัตถุดิบ', en:'Material Acceptance & Storage', wi:'WI-PIPE-01', qc:'WI-QC-PIPE-01', qr:['01-1','01-2','01-3','01-4','01-5'], cap:3, t:1.5, kind:'store', row:'N', x:-16, crew:[['op','Storekeeper'],['qc','QC Inspector']], ctrl:'Hold — ตรวจ MTC / Heat No. ก่อนปล่อยเข้าผลิต'},
+  {no:'02', th:'การตัดท่อ', short:'ตัดท่อ', en:'Cutting', wi:'WI-PIPE-02', qc:'WI-QC-PIPE-02', qr:['02-1','02-2','02-3','02-4'], cap:2, t:1.2, kind:'saw', row:'N', x:-8, crew:[['op','Cutter'],['op','Fitter']], ctrl:'ตรวจความยาว/มุมตัด ตาม Cutting List'},
+  {no:'03', th:'การเตรียมประกอบท่อ (Pre-fabrication)', short:'Pre-fab / Fit-up', en:'Pre-fabrication (End prep, Fit-up, Tack)', wi:'WI-PIPE-03', qc:'WI-QC-PIPE-03', qr:['03-1','03-2','03-3','03-4'], cap:3, t:2.4, kind:'table', row:'N', x:0, crew:[['op','Fitter'],['op','Fitter'],['op','Fitter']], ctrl:'Fit-up inspection — ระยะ Gap / Alignment'},
+  {no:'04', th:'การต่อท่อแบบร่องรัด (Groove)', short:'ขึ้นร่อง Groove', en:'Groove (Roll / Cut Groove)', wi:'WI-PIPE-05', qc:'WI-QC-PIPE-05', qr:['05-1'], cap:2, t:1.3, kind:'groove', row:'N', x:8, crew:[['op','Operator']], ctrl:'ตรวจขนาดร่องตามสเปคผู้ผลิต Coupling · ต่อด้วย Welding'},
+  {no:'05', th:'การเชื่อม (Welding)', short:'เชื่อม GTAW', en:'Welding (GTAW + purge)', wi:'WI-PIPE-04', qc:'WI-QC-PIPE-04', qr:['04-1','04-2','04-3','03-3','03-4'], cap:4, t:3.6, kind:'weld', row:'N', x:16, crew:[['weld','Welder'],['weld','Welder'],['weld','Welder'],['weld','Welder']], ctrl:'VT/PT 100% ตาม WPS ที่รับรอง'},
+  {no:'06', th:'การตรวจสอบขนาด', short:'ตรวจสอบขนาด', en:'Dimensional Verification', wi:'WI-PIPE-06', qc:'WI-QC-PIPE-06', qr:['06-1','06-2'], cap:2, t:1.0, kind:'cmm', row:'S', x:16, crew:[['qc','QC Inspector']], ctrl:'Hold Point — เทียบแบบ Isometric / GA'},
+  {no:'07', th:'การทดสอบแรงดัน', short:'ทดสอบแรงดัน', en:'Pressure Test (Hydro / Pneumatic)', wi:'WI-PIPE-07', qc:'WI-QC-PIPE-07', qr:['07-1'], cap:3, t:2.6, kind:'press', row:'S', x:8, crew:[['op','Test Technician'],['qc','QC Manager']], ctrl:'Witness Point — แจ้งลูกค้าล่วงหน้า'},
+  {no:'08', th:'การล้างท่อ และ Passivation', short:'Flushing → Passivation', en:'Flushing & Cleaning → Passivation (continuous)', wi:'WI-PIPE-08 / 09', qc:'WI-QC-PIPE-08 / 09', qr:['08-1','08-2','09-1','09-2','09-3'], cap:4, t:4.2, split:0.42, subs:['Flushing','Passivation'], kind:'fp', row:'S', x:0, crew:[['op','Flushing Tech'],['op','Passivation Tech']], ctrl:'คุณภาพน้ำ → Ferroxyl test (ไม่มี Free Iron)'},
+  {no:'09', th:'การตรวจสอบขั้นสุดท้าย (Final Inspection)', short:'Final Inspection', en:'Final Inspection & Release', wi:'WI-PIPE-10', qc:'WI-QC-PIPE-10', qr:['10-3','10-4'], cap:2, t:1.1, kind:'final', row:'S', x:-8, crew:[['qc','QC Inspector'],['qc','Client / TPI']], ctrl:'Hold Point — ปล่อยงานก่อนบรรจุ (FM-PIPE-10-3)'},
+  {no:'10', th:'การบรรจุหีบห่อ', short:'บรรจุหีบห่อ', en:'Packaging', wi:'WI-PIPE-10', qc:'WI-QC-PIPE-10', qr:['10-1','10-2'], cap:2, t:1.2, kind:'pack', row:'S', x:-16, crew:[['op','Packing Lead'],['op','Packer']], ctrl:'Packing list / crate tag ครบ'},
+  {no:'A1', th:'รวมชุดอุปกรณ์ Assembly (Kitting)', short:'A1 รวมชุด Kitting', en:'Assembly Kitting — spools, valves, fittings, gaskets', wi:'WI-PIPE-11 (เสนอ)', qc:'—', qr:['ASM-1 Kitting list'], cap:2, t:1.2, kind:'kit', row:'A', x:8, assy:true, crew:[['op','Storekeeper']], ctrl:'ตรวจชุดอุปกรณ์ครบตาม Assembly drawing'},
+  {no:'A2', th:'ประกอบ Assembly Spool', short:'A2 ประกอบ Assembly', en:'Assembly — flange bolt-up, coupling, valve', wi:'WI-PIPE-11 (เสนอ)', qc:'—', qr:['ASM-2 Assembly record'], cap:3, t:3.0, kind:'assy', row:'A', x:0, assy:true, crew:[['op','Fitter'],['op','Fitter'],['op','Rigger']], ctrl:'ลำดับขันน็อต / ทิศทางวาล์ว ตามแบบ'},
+  {no:'A3', th:'ตรวจ Torque และขนาด Assembly', short:'A3 ตรวจ Torque', en:'Torque & Assembly Dimension Check', wi:'WI-PIPE-11 (เสนอ)', qc:'—', qr:['ASM-3 Torque record'], cap:2, t:1.0, kind:'torque', row:'A', x:-8, assy:true, crew:[['qc','QC Inspector']], ctrl:'ค่า Torque ตามสเปค · ขนาดรวมตาม GA'},
 ];
+const ORDER = [0,1,2,3,4,5,6,7,10,11,12,8,9];      // display order (assembly branch sits between 08 and 09)
+const ROW = { N:{zc:-6.4, face:1, flow:1}, S:{zc:6.4, face:-1, flow:-1}, A:{zc:15.4, face:-1, flow:-1} };
+const R = i => ROW[ST[i].row];
+const slotZ = i => R(i).zc + R(i).face * 2.9;
+const laneZr = r => ROW[r].zc + ROW[r].face * 5.1;
+const CORRIDORS = [-20,-12,-4,4,12,20];
 
 const JOBS = [
   {code:'PJ-2026-001', name:'Chilled Water Piping — Data Center Phase 1', client:'ABC Data Center Co., Ltd. (ตัวอย่างจาก FM-PIPE-00)', color:'#2F6FD6', pre:'CHW'},
@@ -218,81 +233,97 @@ const SIZES = ['2"','3"','4"','6"','8"'];
 const sim = { t: 0, speed: 2, running: true, spawnIn: 0, seq: 0, shipped: 0, ncr: 0, cycles: [] };
 const spools = [];
 const stRun = ST.map(() => ({queue: [], work: [], done: 0, util: 0}));
-let rnd = mulberry(20261020);
+const rnd = mulberry(20261020);
 function mulberry(a){ return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
+function routeFor(s){ return [0,1,2, ...(s.groove ? [3] : []), 4,5,6,7, ...(s.assy ? [10,11,12] : []), 8,9]; }
 function newSpool(){
   const job = JOBS[rnd() < 0.62 ? 0 : 1];
   sim.seq++;
-  const groove = rnd() < 0.3;
-  const route = [0,1,2, groove ? 4 : 3, 5,6,7,8,9];
   const s = {
-    id: `${job.pre}-${String(1000 + sim.seq)}`, job, groove,
+    id: `${job.pre}-${String(1000 + sim.seq)}`, job, groove: rnd() < 0.35, assy: rnd() < 0.4,
     size: SIZES[Math.floor(rnd()*SIZES.length)], mat: rnd() < 0.55 ? 'SS316L' : 'SS304L',
     heat: 'H' + Math.floor(20000 + rnd()*70000), joints: 2 + Math.floor(rnd()*5),
-    route, step: 0, phase: 'move', remain: 0, slot: -1, path: null, pathLen: 0, prog: 0,
-    born: sim.t, log: {}, ncr: 0, shippedAt: null, mesh: null, toDock: false
+    step: 0, phase: 'move', remain: 0, dur: 0, slot: -1, path: null, prog: 0,
+    born: sim.t, log: {}, ncr: 0, ncrOpen: false, shippedAt: null, mesh: null, toDock: false, yaw: 0
   };
+  s.route = routeFor(s);
   spools.push(s);
   return s;
 }
 
-/* ---------- Scene layout ---------- */
-const XTOP = [-16,-8,0,8,16], XBOT = [16,8,0,-8,-16];
-const sideOf = i => i < 5 ? -1 : 1;          // -1 = north row, +1 = south row
-const cxOf  = i => i < 5 ? XTOP[i] : XBOT[i-5];
-const flowOf = i => i < 5 ? 1 : -1;          // material flows +x on north row, -x on south row
-const laneZ = side => side * 1.3;
-const DOCK = new THREE.Vector3(-24, 0.6, 4.2);
-const RECV = new THREE.Vector3(-24, 0.6, -3.4);
-
-function workPos(i, k){ const c = ST[i].cap; return new THREE.Vector3(cxOf(i) + (k - (c-1)/2) * 0.95, 1.02, sideOf(i)*3.5); }
-function queuePos(i, q){
-  const x = cxOf(i) - flowOf(i) * (2.75 + (q % 3) * 0.42);
-  return new THREE.Vector3(x, 0.22 + Math.floor(q/3) * 0.4, sideOf(i)*3.5);
+/* ---------- Floor geometry & paths ---------- */
+const DOCK = new THREE.Vector3(-24, 1.0, 4.2);
+const RECV = new THREE.Vector3(-24, 1.0, -3.4);
+function fpZone(s){ return s.dur && (s.dur - s.remain) / s.dur >= ST[7].split ? 1 : 0; }
+function workPos(i, k, s){
+  const st = ST[i], fl = R(i).flow;
+  if (st.kind === 'fp' && s){
+    const zone = fpZone(s);
+    const mates = stRun[i].work.filter(w => fpZone(w) === zone);
+    const j = Math.max(0, mates.indexOf(s)), n = Math.max(1, mates.length);
+    return new THREE.Vector3(st.x + fl * (zone ? 1.15 : -1.15) + (j - (n-1)/2) * 0.62, 1.02, slotZ(i));
+  }
+  return new THREE.Vector3(st.x + (k - (st.cap-1)/2) * 0.95, 1.02, slotZ(i));
 }
-function buildPath(from, ti, toDock){
+function queuePos(i, q){
+  const x = ST[i].x - R(i).flow * (2.75 + (q % 3) * 0.42);
+  return new THREE.Vector3(x, 0.22 + Math.floor(q/3) * 0.4, slotZ(i));
+}
+// waypoints between two aisle points; crossing into/out of the assembly lane uses the nearest gap between stations
+function lanePts(ax, ar, bx, br, y){
+  const la = laneZr(ar), lb = laneZr(br), pts = [new THREE.Vector3(ax, y, la)];
+  if (la !== lb){
+    const crossesRow = ar === 'A' || br === 'A';
+    const cx = crossesRow ? CORRIDORS.reduce((m, c) => Math.abs(c - (ax+bx)/2) < Math.abs(m - (ax+bx)/2) ? c : m) : bx;
+    pts.push(new THREE.Vector3(cx, y, la), new THREE.Vector3(cx, y, lb));
+  }
+  pts.push(new THREE.Vector3(bx, y, lb));
+  return pts;
+}
+function mkPath(pts){ let len = 0; for (let k=1;k<pts.length;k++) len += pts[k].distanceTo(pts[k-1]); return {pts, len}; }
+function buildPath(from, fromRow, ti, toDock){
   const target = toDock ? DOCK.clone() : queuePos(ti, stRun[ti].queue.length + 1);
-  const fs = from.z < 0 ? -1 : 1;
-  const ts = toDock ? 1 : sideOf(ti);
-  const pts = [from.clone(), new THREE.Vector3(from.x, 0.6, laneZ(fs)), new THREE.Vector3(target.x, 0.6, laneZ(fs)), new THREE.Vector3(target.x, 0.6, laneZ(ts)), target];
-  let len = 0; for (let k=1;k<pts.length;k++) len += pts[k].distanceTo(pts[k-1]);
-  return {pts, len};
+  const tr = toDock ? 'S' : ST[ti].row;
+  return mkPath([from.clone(), ...lanePts(from.x, fromRow, target.x, tr, 1.0), target]);
 }
 function pointOnPath(path, d){
   for (let k=1;k<path.pts.length;k++){
     const seg = path.pts[k].distanceTo(path.pts[k-1]);
-    if (d <= seg || k === path.pts.length-1) return path.pts[k-1].clone().lerp(path.pts[k], seg ? Math.min(1, d/seg) : 1);
+    if (d <= seg || k === path.pts.length-1) return path.pts[k-1].clone().lerp(path.pts[k], seg ? Math.min(1, Math.max(0,d)/seg) : 1);
     d -= seg;
   }
   return path.pts[path.pts.length-1].clone();
 }
-
-function startMove(s, fromPos, ti, toDock){
+function startMove(s, fromPos, fromRow, ti, toDock){
   s.phase = 'move'; s.toDock = !!toDock; s.target = ti;
-  s.path = buildPath(fromPos, ti, toDock); s.prog = 0;
+  s.path = buildPath(fromPos, fromRow, ti, toDock); s.prog = 0;
 }
 
 /* ---------- Sim tick (sim hours) ---------- */
-const MOVE_SPEED = 14; // m per sim-hour
+const MOVE_SPEED = 7; // m per sim-hour — a person carrying a spool
+const REWORK = {5: 4, 6: 4, 8: 7, 12: 11};   // failed at → sent back to
+const FAIL_P = {5: 0.04, 6: 0.05, 8: 0.03, 12: 0.04};
 function tick(dt){
   sim.t += dt;
   sim.spawnIn -= dt;
   const active = spools.filter(s => !s.shippedAt).length;
-  if (sim.spawnIn <= 0 && active < 46){ spawnAtReceiving(); sim.spawnIn = 1.1 + rnd()*0.7; }
+  if (sim.spawnIn <= 0 && active < 52){ spawnAtReceiving(); sim.spawnIn = 1.1 + rnd()*0.7; }
 
   ST.forEach((st, i) => {
     const r = stRun[i];
     for (const s of [...r.work]){
       s.remain -= dt;
+      if (st.kind === 'fp' && s.log[i] && s.log[i].flushEnd === undefined && fpZone(s)) s.log[i].flushEnd = sim.t;
       if (s.remain <= 0) finishAt(i, s);
     }
     while (r.work.length < st.cap && r.queue.length){
       const s = r.queue.shift();
       const used = new Set(r.work.map(w => w.slot));
       let k = 0; while (used.has(k)) k++;
-      s.slot = k; s.phase = 'work'; s.remain = st.t * (0.7 + rnd()*0.6) * (s.joints/8 + 0.5);
-      s.log[i] = s.log[i] || {}; s.log[i].start = sim.t;
+      s.slot = k; s.phase = 'work';
+      s.dur = s.remain = st.t * (0.7 + rnd()*0.6) * (s.joints/8 + 0.5);
+      s.log[i] = s.log[i] || {}; s.log[i].start = sim.t; delete s.log[i].flushEnd;
       r.work.push(s);
     }
     const a = 1 - Math.exp(-dt/6);
@@ -307,10 +338,9 @@ function tick(dt){
       else { s.phase = 'queue'; s.log[s.target] = s.log[s.target] || {}; s.log[s.target].in = sim.t; stRun[s.target].queue.push(s); }
     }
   }
-  // drop shipped spools after they've been visible on the truck for a while
   for (let k = spools.length-1; k >= 0; k--){
     const s = spools[k];
-    if (s.shippedAt && sim.t - s.shippedAt > 30){ if (s.mesh) { scene.remove(s.mesh); } spools.splice(k,1); }
+    if (s.shippedAt && sim.t - s.shippedAt > 30){ if (s.mesh) scene.remove(s.mesh); spools.splice(k,1); }
   }
 }
 function finishAt(i, s){
@@ -318,34 +348,28 @@ function finishAt(i, s){
   r.work.splice(r.work.indexOf(s), 1);
   r.done++;
   s.log[i].end = sim.t;
-  const from = workPos(i, s.slot);
-  // NCR: dimensional check or leak at pressure test sends the spool back to its joining station
-  const fail = (i === 5 && rnd() < 0.04) || (i === 6 && rnd() < 0.05);
-  if (fail){
+  const from = workPos(i, s.slot, null);
+  if (FAIL_P[i] && rnd() < FAIL_P[i]){
     s.ncr++; sim.ncr++; s.ncrOpen = true;
-    s.step = s.route.indexOf(s.groove ? 4 : 3);
-    s.lastNcr = {at: ST[i].no, t: sim.t};
-    startMove(s, from, s.route[s.step]);
+    s.lastNcr = {at: ST[i].no, back: ST[REWORK[i]].no, t: sim.t};
+    s.step = s.route.indexOf(REWORK[i]);
+    startMove(s, from, ST[i].row, REWORK[i]);
     return;
   }
-  if (i === 6) s.ncrOpen = false;
+  if (i === 8) s.ncrOpen = false;
   s.step++;
-  if (s.step >= s.route.length) startMove(s, from, null, true);
-  else startMove(s, from, s.route[s.step]);
+  if (s.step >= s.route.length) startMove(s, from, ST[i].row, null, true);
+  else startMove(s, from, ST[i].row, s.route[s.step]);
 }
-function spawnAtReceiving(){
-  const s = newSpool();
-  startMove(s, RECV.clone(), 0);
-  return s;
-}
-// pre-seed so the first frame shows a working floor
+function spawnAtReceiving(){ const s = newSpool(); startMove(s, RECV.clone(), 'N', 0); return s; }
 function seed(){
-  const plan = [[0,3],[1,2],[2,4],[3,6],[4,1],[5,2],[6,3],[7,2],[8,3],[9,2]];
+  const plan = [[0,3],[1,2],[2,3],[3,2],[4,6],[5,2],[6,4],[7,4],[10,2],[11,3],[12,1],[8,2],[9,2]];
   for (const [i, n] of plan){
     for (let k=0;k<n;k++){
       const s = newSpool();
-      if (i === 3 && s.groove) { s.groove = false; s.route[3] = 3; }
-      if (i === 4 && !s.groove) { s.groove = true; s.route[3] = 4; }
+      if (i === 3) s.groove = true;
+      if (ST[i].assy) s.assy = true;
+      s.route = routeFor(s);
       s.step = s.route.indexOf(i);
       s.born = -(4 + s.step * 3 + rnd()*3);
       for (let p=0;p<s.step;p++) s.log[s.route[p]] = {in: s.born + p*2.5, start: s.born + p*2.5 + .4, end: s.born + p*2.5 + 2};
@@ -355,7 +379,6 @@ function seed(){
   }
   sim.shipped = 18; sim.ncr = 2;
   sim.cycles = [31,28,34,30,27,36,29,33];
-  tick(0.0001);
   for (let k=0;k<20;k++) tick(0.15);
 }
 
@@ -367,32 +390,37 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 400);
-const HOME = {pos: new THREE.Vector3(-6, 30, 34), tgt: new THREE.Vector3(-2, 0, 0)};
+const HOME = {pos: new THREE.Vector3(-8, 38, 44), tgt: new THREE.Vector3(-2, 0, 4)};
 camera.position.copy(HOME.pos);
 const controls = new THREE.OrbitControls(camera, canvas);
 controls.target.copy(HOME.tgt);
 controls.enableDamping = true; controls.dampingFactor = 0.08;
-controls.maxPolarAngle = Math.PI * 0.47; controls.minDistance = 6; controls.maxDistance = 90;
+controls.maxPolarAngle = Math.PI * 0.47; controls.minDistance = 5; controls.maxDistance = 100;
 
 scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 0.65));
 const sun = new THREE.DirectionalLight(0xffffff, 0.75);
-sun.position.set(-18, 34, 20); sun.castShadow = true;
+sun.position.set(-18, 34, 24); sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
-Object.assign(sun.shadow.camera, {left:-34, right:34, top:22, bottom:-22, near:1, far:90});
+Object.assign(sun.shadow.camera, {left:-36, right:36, top:26, bottom:-26, near:1, far:100});
 scene.add(sun);
 
+const FLOOR = {w: 64, d: 36, x: -3, z: 4};
 const floorMat = new THREE.MeshStandardMaterial({color: 0xcccccc, roughness: 0.95});
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(64, 26), floorMat);
-floor.rotation.x = -Math.PI/2; floor.receiveShadow = true; floor.position.x = -3;
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(FLOOR.w, FLOOR.d), floorMat);
+floor.rotation.x = -Math.PI/2; floor.receiveShadow = true; floor.position.set(FLOOR.x, 0, FLOOR.z);
 scene.add(floor);
 let grid = null;
 const aisleMat = new THREE.MeshStandardMaterial({color: 0xE0B020, roughness: .8});
-for (const z of [-2.3, 2.3]){
+for (const z of [-2.3, 2.3, 8.7, 11.5]){
   for (let x = -26; x < 21; x += 1.6){
     const m = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.12), aisleMat);
     m.rotation.x = -Math.PI/2; m.position.set(x, 0.012, z); scene.add(m);
   }
 }
+// assembly line zone
+const zoneMat = new THREE.MeshStandardMaterial({color: 0x8A6BD1, transparent: true, opacity: 0.1, roughness: 1});
+const zone = new THREE.Mesh(new THREE.PlaneGeometry(26, 9.6), zoneMat);
+zone.rotation.x = -Math.PI/2; zone.position.set(0, 0.008, 15.6); scene.add(zone);
 
 const M = {
   steel: new THREE.MeshStandardMaterial({color: 0xaab4bd, metalness: 0.35, roughness: 0.38}),
@@ -401,6 +429,8 @@ const M = {
   yellow:new THREE.MeshStandardMaterial({color: 0xe0a21a, metalness: 0.2, roughness: 0.55}),
   wood:  new THREE.MeshStandardMaterial({color: 0xb98a55, roughness: 0.85}),
   red:   new THREE.MeshStandardMaterial({color: 0xcf3b3b, roughness: 0.5}),
+  purple:new THREE.MeshStandardMaterial({color: 0x8A6BD1, roughness: 0.5}),
+  white: new THREE.MeshStandardMaterial({color: 0xf2f4f6, roughness: 0.6}),
   water: new THREE.MeshStandardMaterial({color: 0x3aa0d8, transparent: true, opacity: 0.75, roughness: .2}),
   acid:  new THREE.MeshStandardMaterial({color: 0x7ccf6a, transparent: true, opacity: 0.8, roughness: .2}),
   curtain:new THREE.MeshStandardMaterial({color: 0xe36a1b, transparent: true, opacity: 0.45, side: THREE.DoubleSide}),
@@ -409,118 +439,132 @@ const M = {
 function box(w,h,d,mat,x,y,z,parent){ const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat); m.position.set(x,y,z); m.castShadow = m.receiveShadow = true; parent.add(m); return m; }
 function cyl(r,h,mat,x,y,z,parent,rot){ const m = new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,24), mat); m.position.set(x,y,z); if (rot) m.rotation.set(rot[0],rot[1],rot[2]); m.castShadow = m.receiveShadow = true; parent.add(m); return m; }
 
-const stations = [];   // {group, pad, padMat, fx}
+const stations = [];
 const pickables = [];
 const STATE_COL = {ok: 0x23915F, warn: 0xC07A0A, bad: 0xCF3B3B};
 
+// machines are built in station-local space: local -z = back wall, local +z = toward the aisle, local -x = upstream
 function buildMachine(i, g){
   const k = ST[i].kind, fx = {};
-  const s = 1; // machines sit at local z=0 (station centre), facing the aisle
   switch (k){
     case 'store': {
-      for (const x of [-1.8, 0, 1.8]){ box(0.15, 2.4, 1.6, M.blue, x, 1.2, 0, g); }
-      for (const y of [0.5, 1.2, 1.9]){ box(3.9, 0.08, 1.6, M.yellow, 0, y, 0, g);
-        for (let p=0;p<5;p++) cyl(0.12, 3.6, M.steel, 0, y+0.16, -0.6 + p*0.3, g, [0,0,Math.PI/2]); }
-      box(1.0, 0.9, 0.8, M.dark, 2.6, 0.45, 0.6, g); // MTC desk
+      for (const x of [-1.8, 0, 1.8]) box(0.15, 2.4, 1.6, M.blue, x, 1.2, -0.4, g);
+      for (const y of [0.5, 1.2, 1.9]){ box(3.9, 0.08, 1.6, M.yellow, 0, y, -0.4, g);
+        for (let p=0;p<5;p++) cyl(0.12, 3.6, M.steel, 0, y+0.16, -1.0 + p*0.3, g, [0,0,Math.PI/2]); }
+      box(1.0, 0.9, 0.8, M.dark, 2.6, 0.45, -0.2, g);
       break; }
     case 'saw': {
-      box(3.4, 0.9, 1.2, M.dark, 0, 0.45, 0, g);
-      box(0.25, 1.6, 1.0, M.yellow, 0.4, 1.6, 0, g);
-      fx.blade = box(0.9, 0.12, 0.05, M.steel, 0.4, 1.0, 0.45, g);
-      cyl(0.1, 3.0, M.steel, -0.3, 1.0, 0.1, g, [0,0,Math.PI/2]);
+      box(3.4, 0.9, 1.2, M.dark, 0, 0.45, -0.4, g);
+      box(0.25, 1.6, 1.0, M.yellow, 0.4, 1.6, -0.4, g);
+      fx.blade = box(0.9, 0.12, 0.05, M.steel, 0.4, 1.0, 0.05, g);
       break; }
     case 'table': {
-      box(3.6, 0.1, 1.8, M.bench, 0, 0.95, 0, g);
-      for (const x of [-1.6,1.6]) for (const z of [-0.75,0.75]) box(0.1, 0.9, 0.1, M.dark, x, 0.45, z, g);
-      box(0.4, 0.4, 0.5, M.blue, -1.2, 1.2, 0, g); box(0.4, 0.4, 0.5, M.blue, 1.2, 1.2, 0, g);
-      cyl(0.16, 2.0, M.steel, 0, 1.18, 0, g, [0,0,Math.PI/2]);
+      box(3.6, 0.1, 1.4, M.bench, 0, 0.95, -0.6, g);
+      for (const x of [-1.6,1.6]) for (const z of [-1.2,0]) box(0.1, 0.9, 0.1, M.dark, x, 0.45, z, g);
+      box(0.4, 0.4, 0.5, M.blue, -1.2, 1.2, -0.6, g); box(0.4, 0.4, 0.5, M.blue, 1.2, 1.2, -0.6, g);
       break; }
     case 'weld': {
-      for (const x of [-2.1, 2.1]) box(0.05, 2.2, 2.2, M.curtain, x, 1.1, 0, g);
-      box(4.2, 2.2, 0.05, M.curtain, 0, 1.1, -1.1, g);
-      box(0.8, 0.9, 0.7, M.blue, -1.4, 0.45, -0.5, g); box(0.8, 0.9, 0.7, M.blue, 1.4, 0.45, -0.5, g);
-      cyl(0.18, 1.2, M.dark, -0.5, 0.6, -0.6, g); cyl(0.18, 1.2, M.dark, 0.5, 0.6, -0.6, g); // argon bottles
-      fx.light = new THREE.PointLight(0x9fc8ff, 0, 7); fx.light.position.set(0, 1.4, 0.8); g.add(fx.light);
-      fx.spark = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), new THREE.MeshBasicMaterial({color: 0xdfeeff}));
-      fx.spark.position.set(0, 1.1, 1.0); g.add(fx.spark);
+      for (const x of [-2.4, 2.4]) box(0.05, 2.2, 2.6, M.curtain, x, 1.1, -0.2, g);
+      box(4.8, 2.2, 0.05, M.curtain, 0, 1.1, -1.5, g);
+      for (const x of [-1.6, -0.55, 0.55, 1.6]) box(0.6, 0.8, 0.5, M.blue, x, 0.4, -1.1, g);
+      cyl(0.16, 1.3, M.dark, -2.0, 0.65, -1.0, g); cyl(0.16, 1.3, M.dark, 2.0, 0.65, -1.0, g);
+      fx.light = new THREE.PointLight(0x9fc8ff, 0, 8); fx.light.position.set(0, 1.6, 2.2); g.add(fx.light);
+      fx.spark = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 12), new THREE.MeshBasicMaterial({color: 0xdfeeff}));
+      fx.spark.position.set(0, 1.2, 2.5); g.add(fx.spark);
       break; }
     case 'groove': {
-      box(1.6, 1.0, 1.2, M.red, -0.6, 0.5, 0, g);
-      fx.roll = cyl(0.28, 0.3, M.steel, 0.4, 1.15, 0.3, g, [Math.PI/2,0,0]);
-      box(1.2, 0.8, 1.0, M.dark, 1.4, 0.4, 0, g);
+      box(1.6, 1.0, 1.2, M.red, -0.6, 0.5, -0.5, g);
+      fx.roll = cyl(0.28, 0.3, M.steel, 0.4, 1.15, -0.1, g, [Math.PI/2,0,0]);
+      box(1.2, 0.8, 1.0, M.dark, 1.4, 0.4, -0.5, g);
       break; }
     case 'cmm': {
-      for (const x of [-1.8, 1.8]) box(0.15, 2.4, 0.15, M.yellow, x, 1.2, 0.2, g);
-      fx.gantry = box(3.75, 0.2, 0.3, M.yellow, 0, 2.4, 0.2, g);
-      box(3.4, 0.6, 1.4, M.dark, 0, 0.3, 0, g);
-      box(0.6, 1.2, 0.5, M.blue, 2.6, 0.6, -0.3, g);
+      for (const x of [-1.8, 1.8]) box(0.15, 2.4, 0.15, M.yellow, x, 1.2, -0.3, g);
+      fx.gantry = box(3.75, 0.2, 0.3, M.yellow, 0, 2.4, -0.3, g);
+      box(3.4, 0.6, 1.2, M.dark, 0, 0.3, -0.6, g);
       break; }
     case 'press': {
-      box(3.6, 0.5, 1.4, M.dark, 0, 0.25, 0, g);
-      cyl(0.5, 1.6, M.blue, -2.2, 0.8, -0.2, g);
-      fx.gauge = cyl(0.35, 0.08, M.steel, -2.2, 1.9, 0.3, g, [Math.PI/2,0,0]);
-      fx.needle = box(0.04, 0.28, 0.02, M.red, -2.2, 1.9, 0.36, g);
-      cyl(0.08, 3.0, M.steel, 0.2, 0.62, -0.4, g, [0,0,Math.PI/2]);
+      box(3.6, 0.5, 1.2, M.dark, 0, 0.25, -0.6, g);
+      cyl(0.5, 1.6, M.blue, -2.2, 0.8, -0.9, g);
+      fx.gauge = cyl(0.35, 0.08, M.steel, -2.2, 1.9, -0.4, g, [Math.PI/2,0,0]);
+      fx.needle = box(0.04, 0.28, 0.02, M.red, -2.2, 1.9, -0.34, g);
       break; }
-    case 'flush': {
-      cyl(0.9, 1.8, M.steel, -0.8, 0.9, -0.2, g);
-      fx.water = cyl(0.85, 0.06, M.water, -0.8, 1.6, -0.2, g);
-      box(1.2, 0.8, 0.8, M.blue, 1.3, 0.4, -0.2, g);
-      cyl(0.08, 2.0, M.steel, 0.3, 1.2, 0.5, g, [0,0,Math.PI/2]);
+    case 'fp': {  // upstream: flushing tank · downstream: passivation bath
+      cyl(0.75, 1.7, M.steel, -2.0, 0.85, -0.8, g);
+      fx.water = cyl(0.7, 0.06, M.water, -2.0, 1.55, -0.8, g);
+      box(0.9, 0.7, 0.7, M.blue, -0.8, 0.35, -1.0, g);
+      box(2.4, 0.8, 1.3, M.bench, 1.4, 0.4, -0.8, g);
+      fx.acid = box(2.2, 0.05, 1.1, M.acid, 1.4, 0.81, -0.8, g);
+      box(0.06, 1.8, 1.6, M.white, 0.2, 0.9, -0.6, g); // splash wall between the two steps
       break; }
-    case 'bath': {
-      box(3.6, 0.9, 1.6, M.bench, 0, 0.45, -0.1, g);
-      fx.acid = box(3.4, 0.05, 1.4, M.acid, 0, 0.88, -0.1, g);
-      box(0.5, 1.4, 0.5, M.yellow, 2.3, 0.7, -0.3, g);
+    case 'final': {
+      box(3.6, 0.1, 1.2, M.white, 0, 0.95, -0.7, g);
+      for (const x of [-1.6,1.6]) box(0.1, 0.9, 0.1, M.dark, x, 0.45, -0.7, g);
+      box(0.08, 2.2, 0.08, M.dark, -1.9, 1.1, -1.2, g); box(1.4, 0.08, 0.08, M.dark, -1.25, 2.2, -1.2, g);
+      fx.lamp = cyl(0.22, 0.12, M.yellow, -0.6, 2.1, -1.2, g);
+      box(1.0, 1.2, 0.6, M.blue, 2.4, 0.6, -0.8, g);
       break; }
     case 'pack': {
-      for (let a=0;a<3;a++) for (let b=0;b<2;b++) box(1.1, 0.7, 1.0, M.wood, -1.2 + a*1.2, 0.35 + b*0.72, -0.3, g);
-      box(0.6, 1.6, 0.6, M.dark, 2.4, 0.8, -0.2, g);
+      for (let a=0;a<3;a++) for (let b=0;b<2;b++) box(1.1, 0.7, 1.0, M.wood, -1.2 + a*1.2, 0.35 + b*0.72, -0.8, g);
+      box(0.6, 1.6, 0.6, M.dark, 2.4, 0.8, -0.6, g);
+      break; }
+    case 'kit': {
+      for (const x of [-1.5, 0, 1.5]) box(1.3, 1.6, 0.8, M.blue, x, 0.8, -1.0, g);
+      for (const x of [-1.5, 0, 1.5]) { const w = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.05, 8, 20), M.red); w.position.set(x, 1.85, -1.0); g.add(w); }
+      break; }
+    case 'assy': {
+      for (const x of [-2.2, 2.2]) box(0.15, 3.0, 0.15, M.purple, x, 1.5, -0.6, g);
+      fx.hoist = box(4.55, 0.22, 0.22, M.purple, 0, 3.0, -0.6, g);
+      fx.hook = box(0.2, 0.5, 0.2, M.yellow, 0, 2.6, -0.6, g);
+      box(1.0, 0.8, 0.6, M.dark, -1.6, 0.4, -1.2, g);
+      break; }
+    case 'torque': {
+      box(3.0, 0.9, 1.0, M.dark, 0, 0.45, -0.9, g);
+      box(0.7, 0.5, 0.4, M.purple, 1.0, 1.15, -0.9, g);
+      fx.gauge = cyl(0.25, 0.06, M.white, -0.8, 1.3, -0.7, g, [Math.PI/2,0,0]);
       break; }
   }
   return fx;
 }
 
-function makeLabel(text, sub){
+function makeLabel(text, sub, tint){
   const c = document.createElement('canvas'); c.width = 512; c.height = 128;
   const x = c.getContext('2d');
   x.fillStyle = 'rgba(16,22,30,0.86)';
   const r = 22; x.beginPath(); x.moveTo(r,0); x.arcTo(512,0,512,128,r); x.arcTo(512,128,0,128,r); x.arcTo(0,128,0,0,r); x.arcTo(0,0,512,0,r); x.fill();
-  x.fillStyle = '#7FB0FF'; x.font = '600 34px "JetBrains Mono", monospace'; x.fillText(sub, 26, 52);
+  x.fillStyle = tint || '#7FB0FF'; x.font = '600 32px "JetBrains Mono", monospace'; x.fillText(sub, 26, 50);
   x.fillStyle = '#FFFFFF'; x.font = '600 40px "IBM Plex Sans Thai", "Chakra Petch", sans-serif'; x.fillText(text, 26, 104);
   const tex = new THREE.CanvasTexture(c); tex.anisotropy = 4;
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({map: tex, depthWrite: false}));
   sp.scale.set(4.2, 1.05, 1);
   return sp;
 }
+const labelSub = st => `${st.no} · ${st.assy ? 'ASSEMBLY' : st.wi}`;
 
 ST.forEach((st, i) => {
-  const g = new THREE.Group();
-  const side = sideOf(i);
-  g.position.set(cxOf(i), 0, side * 6.4);
-  if (side > 0) g.rotation.y = Math.PI; // south row faces the aisle too
-  const padMat = new THREE.MeshStandardMaterial({color: STATE_COL.ok, transparent: true, opacity: 0.22, roughness: 1});
+  const g = new THREE.Group(), row = R(i);
+  g.position.set(st.x, 0, row.zc);
+  if (row.face < 0) g.rotation.y = Math.PI;
+  const padMat = new THREE.MeshStandardMaterial({color: STATE_COL.ok, transparent: true, opacity: 0.2, roughness: 1});
   const pad = new THREE.Mesh(new THREE.PlaneGeometry(6.6, 6.2), padMat);
-  pad.rotation.x = -Math.PI/2; pad.position.set(0, 0.015, 1.9); g.add(pad); // extends toward the aisle
+  pad.rotation.x = -Math.PI/2; pad.position.set(0, 0.015, 1.9); g.add(pad);
   const edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(6.6, 6.2)), new THREE.LineBasicMaterial({color: STATE_COL.ok}));
   edge.rotation.x = -Math.PI/2; edge.position.set(0, 0.02, 1.9); g.add(edge);
   const fx = buildMachine(i, g);
-  // work bench in front of machine (toward aisle)
   scene.add(g);
-  const bench = new THREE.Mesh(new THREE.BoxGeometry(st.cap * 0.95 + 0.5, 0.12, 0.5), M.bench);
-  bench.position.set(cxOf(i), 0.84, side*3.5 - side*0.75); bench.castShadow = true; scene.add(bench);
-  const bench2 = bench.clone(); bench2.position.z = side*3.5 + side*0.75; scene.add(bench2);
-  for (const b of [bench, bench2]) for (const dx of [-1,1]){ const leg = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.8, 0.1), M.dark); leg.position.set(b.position.x + dx*(st.cap*0.47+0.15), 0.4, b.position.z); scene.add(leg); }
-  const lab = makeLabel(st.short, `${st.no} · ${st.wi}`);
-  lab.position.set(cxOf(i), 4.1, side*6.6);
+  const sz = slotZ(i), bw = st.cap * 0.95 + 0.5;
+  for (const dz of [-0.75, 0.75]){
+    const b = new THREE.Mesh(new THREE.BoxGeometry(bw, 0.12, 0.5), M.bench);
+    b.position.set(st.x, 0.84, sz + dz); b.castShadow = true; scene.add(b);
+    for (const dx of [-1,1]){ const leg = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.8, 0.1), M.dark); leg.position.set(st.x + dx*(bw/2-0.1), 0.4, sz + dz); scene.add(leg); }
+  }
+  const lab = makeLabel(st.short, labelSub(st), st.assy ? '#C3AEFF' : null);
+  lab.position.set(st.x, 4.1, row.zc - row.face * 0.2);
   scene.add(lab);
   g.traverse(o => { o.userData.station = i; });
-  pad.userData.station = i;
   pickables.push(g);
-  stations.push({group: g, padMat, edge, fx, label: lab, state: 'ok'});
+  stations.push({group: g, padMat, edge, fx, label: lab, state: 'ok', crew: []});
 });
 
-// receiving & shipping docks
 (function docks(){
   const truck = new THREE.Group();
   box(3.0, 0.3, 6.0, M.dark, 0, 0.9, 0, truck);
@@ -530,37 +574,126 @@ ST.forEach((st, i) => {
   const t2 = truck.clone(); t2.position.set(-26.5, 0, -6.2); scene.add(t2);
   const a = makeLabel('ท่าส่งสินค้า', 'DISPATCH'); a.position.set(-24, 3.8, 6.4); scene.add(a);
   const b = makeLabel('ท่ารับวัตถุดิบ', 'RECEIVING'); b.position.set(-24, 3.8, -6.4); scene.add(b);
+  const c = makeLabel('Assembly Spool Line', 'BRANCH 08 → 09', '#C3AEFF'); c.position.set(14.5, 2.6, 15.6); scene.add(c);
 })();
 
-/* spool meshes */
+/* ---------- People ---------- */
+const PG = {
+  leg: new THREE.BoxGeometry(0.13, 0.82, 0.15), torso: new THREE.BoxGeometry(0.4, 0.6, 0.24),
+  arm: new THREE.BoxGeometry(0.1, 0.56, 0.12), head: new THREE.SphereGeometry(0.12, 14, 12),
+  hat: new THREE.SphereGeometry(0.145, 14, 8, 0, Math.PI*2, 0, Math.PI/2), brim: new THREE.CylinderGeometry(0.18, 0.18, 0.02, 16),
+  stripe: new THREE.BoxGeometry(0.41, 0.06, 0.25), visor: new THREE.BoxGeometry(0.26, 0.26, 0.05), board: new THREE.BoxGeometry(0.22, 0.28, 0.03),
+};
+const PM = {};
+const pm = hex => PM[hex] || (PM[hex] = new THREE.MeshStandardMaterial({color: hex, roughness: 0.7}));
+const ROLE = {
+  op:   {body: 0xE8762C, hat: 0xF2C230, name: 'ช่างประจำสถานี'},
+  weld: {body: 0x46525e, hat: 0x2b3238, name: 'ช่างเชื่อม'},
+  qc:   {body: 0x2F6FD6, hat: 0xffffff, name: 'QC'},
+  sup:  {body: 0x23915F, hat: 0xffffff, name: 'หัวหน้างาน'},
+  hand: {body: 0x7C5CC9, hat: 0xF2C230, name: 'คนยกย้าย'},
+};
+function makePerson(role){
+  const R0 = ROLE[role], g = new THREE.Group();
+  const part = (geo, hex, x, y, z, parent) => { const m = new THREE.Mesh(geo, pm(hex)); m.position.set(x, y, z); m.castShadow = true; (parent || g).add(m); return m; };
+  const limb = (x, y) => { const p = new THREE.Group(); p.position.set(x, y, 0); g.add(p); return p; };
+  const legL = limb(-0.1, 0.85), legR = limb(0.1, 0.85);
+  part(PG.leg, 0x2c3540, 0, -0.41, 0, legL); part(PG.leg, 0x2c3540, 0, -0.41, 0, legR);
+  part(PG.torso, R0.body, 0, 1.15, 0);
+  part(PG.stripe, 0xD8EF4A, 0, 1.12, 0);
+  const armL = limb(-0.27, 1.42), armR = limb(0.27, 1.42);
+  part(PG.arm, R0.body, 0, -0.28, 0, armL); part(PG.arm, R0.body, 0, -0.28, 0, armR);
+  part(PG.head, 0xD9A784, 0, 1.6, 0);
+  part(PG.hat, R0.hat, 0, 1.64, 0); part(PG.brim, R0.hat, 0, 1.64, 0.02);
+  if (role === 'weld') part(PG.visor, 0x1d2329, 0, 1.58, 0.14);
+  if (role === 'qc' || role === 'sup') part(PG.board, 0xffffff, 0, -0.5, 0.1, armR);
+  g.userData = {legL, legR, armL, armR, role};
+  scene.add(g);
+  return g;
+}
+function posePerson(p, mode, ph){
+  const u = p.userData;
+  if (mode === 'walk' || mode === 'carry'){
+    const sw = Math.sin(ph) * 0.55;
+    u.legL.rotation.x = sw; u.legR.rotation.x = -sw;
+    if (mode === 'carry'){ u.armL.rotation.x = u.armR.rotation.x = -1.25; }
+    else { u.armL.rotation.x = -sw * 0.7; u.armR.rotation.x = sw * 0.7; }
+    p.position.y = Math.abs(Math.cos(ph)) * 0.04;
+  } else if (mode === 'work'){
+    u.legL.rotation.x = u.legR.rotation.x = 0;
+    u.armL.rotation.x = -1.05 + Math.sin(ph * 2.2) * 0.18; u.armR.rotation.x = -1.05 + Math.cos(ph * 2.6) * 0.22;
+    p.position.y = 0;
+  } else {
+    u.legL.rotation.x = u.legR.rotation.x = 0;
+    u.armL.rotation.x = Math.sin(ph * 0.6) * 0.05; u.armR.rotation.x = -Math.sin(ph * 0.6) * 0.05;
+    p.position.y = 0;
+  }
+}
+// station crews stand between the machine and the work bench, facing the bench
+ST.forEach((st, i) => {
+  const row = R(i), n = st.crew.length;
+  st.crew.forEach(([role], k) => {
+    const p = makePerson(role);
+    const x = n === st.cap ? workPos(i, k).x : st.x + (k - (n-1)/2) * 1.2;
+    p.position.set(x, 0, slotZ(i) - row.face * 1.45);
+    p.rotation.y = row.face > 0 ? 0 : Math.PI;
+    stations[i].crew.push(p);
+  });
+});
+// patrolling staff walk the aisles between the stations they look after
+const walkers = [
+  {role: 'qc',  name: 'QC Inspector — In-process', stops: [2, 4, 5, 6]},
+  {role: 'qc',  name: 'QC Inspector — Final', stops: [7, 8, 12, 11, 8]},
+  {role: 'sup', name: 'Workshop Supervisor', stops: [0, 1, 2, 3, 4, 6, 7, 9]},
+  {role: 'hand',name: 'Storekeeper — material issue', stops: [0, 10, 0, 2]},
+].map((w, j) => ({...w, p: makePerson(w.role), k: j % w.stops.length, path: null, prog: 0, wait: 1 + j, ph: j}));
+const aisle = i => new THREE.Vector3(ST[i].x, 0, laneZr(ST[i].row));
+function walkerNext(w){
+  const a = w.stops[w.k], b = w.stops[(w.k + 1) % w.stops.length];
+  w.path = mkPath(lanePts(ST[a].x, ST[a].row, ST[b].x, ST[b].row, 0));
+  w.prog = 0; w.k = (w.k + 1) % w.stops.length;
+}
+walkers.forEach(w => { w.p.position.copy(aisle(w.stops[w.k])); walkerNext(w); });
+const escortPool = [];
+function takeEscort(){ const p = escortPool.pop() || makePerson('hand'); p.visible = true; return p; }
+function freeEscort(s){ if (s.escort){ s.escort.visible = false; escortPool.push(s.escort); s.escort = null; } }
+
+/* ---------- Spool meshes ---------- */
 const geo = {
   pipe: new THREE.CylinderGeometry(0.16, 0.16, 2.0, 20),
   flange: new THREE.CylinderGeometry(0.26, 0.26, 0.07, 20),
   band: new THREE.CylinderGeometry(0.168, 0.168, 0.22, 20),
+  groove: new THREE.CylinderGeometry(0.165, 0.165, 0.05, 20),
   ring: new THREE.TorusGeometry(0.3, 0.05, 8, 24),
+  valve: new THREE.BoxGeometry(0.36, 0.3, 0.36), wheel: new THREE.TorusGeometry(0.16, 0.035, 8, 18),
 };
 const pipeMat = new THREE.MeshStandardMaterial({color: 0xd2d8de, metalness: 0.3, roughness: 0.32});
 const jobMat = JOBS.map(j => new THREE.MeshStandardMaterial({color: new THREE.Color(j.color), roughness: .5}));
 const ncrMat = new THREE.MeshBasicMaterial({color: 0xff4d4d});
 const selMat = new THREE.MeshBasicMaterial({color: 0x6C9EFF});
 function spoolMesh(s){
-  const g = new THREE.Group();
+  const outer = new THREE.Group(), g = new THREE.Group();
+  outer.add(g); g.rotation.x = Math.PI/2;
   const p = new THREE.Mesh(geo.pipe, pipeMat); p.castShadow = true; g.add(p);
   for (const y of [-1.0, 1.0]){ const f = new THREE.Mesh(geo.flange, pipeMat); f.position.y = y; f.castShadow = true; g.add(f); }
+  if (s.groove) for (const y of [-0.8, 0.8]){ const gr = new THREE.Mesh(geo.groove, M.dark); gr.position.y = y; g.add(gr); }
   const b = new THREE.Mesh(geo.band, jobMat[JOBS.indexOf(s.job)]); b.position.y = 0.45; g.add(b);
+  const valve = new THREE.Group(); valve.visible = false; g.add(valve);
+  const vb = new THREE.Mesh(geo.valve, M.red); vb.position.set(0, -0.25, 0); valve.add(vb);
+  const vw = new THREE.Mesh(geo.wheel, M.red); vw.position.set(0, -0.25, -0.38); valve.add(vw);
   const ring = new THREE.Mesh(geo.ring, ncrMat); ring.rotation.x = Math.PI/2; ring.visible = false; g.add(ring);
   const sel = new THREE.Mesh(geo.ring, selMat); sel.rotation.x = Math.PI/2; sel.position.y = -0.3; sel.visible = false; g.add(sel);
-  g.rotation.x = Math.PI/2;
-  g.userData = {spool: s, ring, sel};
-  g.traverse(o => { o.userData.spool = s; });
-  scene.add(g);
-  return g;
+  outer.userData = {ring, sel, valve};
+  outer.traverse(o => { o.userData.spool = s; });
+  Object.assign(outer.userData, {ring, sel, valve});
+  scene.add(outer);
+  return outer;
 }
 function spoolTarget(s){
   if (s.phase === 'move') return pointOnPath(s.path, s.prog);
-  if (s.phase === 'work') return workPos(s.route[s.step], s.slot);
-  if (s.phase === 'queue') { const i = s.route[s.step]; return queuePos(i, stRun[i].queue.indexOf(s)); }
-  // shipped → on the dispatch truck
+  const i = s.route[s.step];
+  if (s.phase === 'work') return workPos(i, s.slot, s);
+  if (s.phase === 'queue') return queuePos(i, stRun[i].queue.indexOf(s));
   const n = spools.filter(o => o.shippedAt && o.shippedAt <= s.shippedAt).length - 1;
   return new THREE.Vector3(-26.5 - 1.2 + (n % 6) * 0.45, 1.25 + Math.floor(n/6)%4 * 0.36, 6.2);
 }
@@ -571,10 +704,9 @@ function applyTheme(){
   floorMat.color.set(tok('--floor') || '#C7CFD7');
   if (grid) scene.remove(grid);
   const gc = new THREE.Color(tok('--grid') || '#AEB8C2');
-  grid = new THREE.GridHelper(64, 64, gc, gc); grid.position.set(-3, 0.005, 0);
-  grid.material.transparent = true; grid.material.opacity = 0.35; grid.scale.z = 26/64;
+  grid = new THREE.GridHelper(FLOOR.w, FLOOR.w, gc, gc); grid.position.set(FLOOR.x, 0.005, FLOOR.z);
+  grid.material.transparent = true; grid.material.opacity = 0.35; grid.scale.z = FLOOR.d / FLOOR.w;
   scene.add(grid);
-  for (const s of spools) if (s.mesh) s.mesh.userData.sel.material = selMat;
   selMat.color.set(tok('--accent') || '#2F6FD6');
 }
 new MutationObserver(applyTheme).observe(document.documentElement, {attributes: true, attributeFilter: ['data-theme']});
@@ -586,15 +718,13 @@ function resize(){
 }
 new ResizeObserver(resize).observe(stage);
 
-/* camera flights */
 let flight = null;
 function flyTo(pos, tgt){ flight = {p0: camera.position.clone(), t0: controls.target.clone(), p1: pos, t1: tgt, k: 0}; }
 function flyStation(i){
-  const side = sideOf(i), x = cxOf(i);
-  flyTo(new THREE.Vector3(x + 2.5, 9.5, -side * 5.5), new THREE.Vector3(x, 1, side * 4.5));
+  const r = R(i), x = ST[i].x;
+  flyTo(new THREE.Vector3(x + 2.5, 9.5, r.zc + r.face * 11.9), new THREE.Vector3(x, 1, r.zc + r.face * 1.9));
 }
 
-/* picking */
 const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
 let down = null;
 canvas.addEventListener('pointerdown', e => { down = {x: e.clientX, y: e.clientY}; canvas.style.cursor = 'grabbing'; });
@@ -604,14 +734,13 @@ canvas.addEventListener('pointerup', e => {
   const r = canvas.getBoundingClientRect();
   mouse.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(mouse, camera);
-  const sMeshes = spools.filter(s => s.mesh).map(s => s.mesh);
-  const hs = ray.intersectObjects(sMeshes, true);
+  const hs = ray.intersectObjects(spools.filter(s => s.mesh).map(s => s.mesh), true);
   if (hs.length){ select({spool: hs[0].object.userData.spool}); return; }
   const h = ray.intersectObjects(pickables, true);
   if (h.length && h[0].object.userData.station !== undefined){ select({station: h[0].object.userData.station}); flyStation(h[0].object.userData.station); }
 });
 
-/* ---------- UI: selection & panels ---------- */
+/* ---------- UI ---------- */
 let selection = {};
 const hovering = new Set();
 for (const id of ['#side', '#p-spool']){ const el = $(id); el.addEventListener('pointerenter', () => hovering.add(id)); el.addEventListener('pointerleave', () => hovering.delete(id)); }
@@ -621,11 +750,7 @@ function select(sel){
   if (selection.spool && selection.spool.mesh) selection.spool.mesh.userData.sel.visible = true;
   renderRail(); renderSide();
 }
-
-function stationState(i){
-  const q = stRun[i].queue.length;
-  return q >= 8 ? 'bad' : q >= 4 ? 'warn' : 'ok';
-}
+function stationState(i){ const q = stRun[i].queue.length; return q >= 8 ? 'bad' : q >= 4 ? 'warn' : 'ok'; }
 const STATE_TXT = {ok: 'ปกติ', warn: 'งานรอคิว', bad: 'คอขวด'};
 const fmtH = h => `${h.toFixed(1)} ชม.`;
 function clockTxt(t){ const tot = 8*60 + t*60; const d = Math.floor(tot / (24*60)); const m = Math.floor(tot % (24*60)); return [d+1, `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`]; }
@@ -633,9 +758,11 @@ function where(s){
   if (s.shippedAt) return 'ส่งมอบแล้ว (Dispatched)';
   const i = s.phase === 'move' ? s.target : s.route[s.step];
   if (s.phase === 'move') return s.toDock ? 'กำลังไปท่าส่งสินค้า' : `กำลังเคลื่อนย้าย → ${ST[i].no}`;
-  return `${ST[i].no} ${ST[i].short} · ${s.phase === 'work' ? 'กำลังทำ' : 'รอคิว'}`;
+  const sub = ST[i].kind === 'fp' && s.phase === 'work' ? ` (${ST[i].subs[fpZone(s)]})` : '';
+  return `${ST[i].no} ${ST[i].short}${sub} · ${s.phase === 'work' ? 'กำลังทำ' : 'รอคิว'}`;
 }
-function progressOf(s){ if (s.shippedAt) return 1; return Math.min(1, s.step / s.route.length); }
+function progressOf(s){ return s.shippedAt ? 1 : Math.min(1, s.step / s.route.length); }
+function headcount(){ return ST.reduce((a, st) => a + st.crew.length, 0) + walkers.length + spools.filter(s => s.escort).length; }
 
 function renderSide(){
   const side = $('#side');
@@ -646,39 +773,41 @@ function renderSide(){
 function overviewPanel(){
   const active = spools.filter(s => !s.shippedAt);
   const avg = sim.cycles.length ? sim.cycles.reduce((a,b)=>a+b,0)/sim.cycles.length : 0;
-  const worst = ST.map((st,i) => ({i, q: stRun[i].queue.length, u: stRun[i].util})).sort((a,b) => b.q - a.q || b.u - a.u);
-  const b = worst[0];
-  const openNcr = active.filter(s => s.ncrOpen).length;
+  const b = ORDER.map(i => ({i, q: stRun[i].queue.length, u: stRun[i].util})).sort((a,b) => b.q - a.q || b.u - a.u)[0];
+  const assyWip = active.filter(s => s.assy).length;
   return `
     <div><div class="eyebrow">WORKSHOP · LAM LUK KA</div><h2>ภาพรวมการผลิต</h2></div>
     <div class="kpis">
-      <div class="kpi"><span class="v">${active.length}</span><span class="k">Spool ระหว่างผลิต (WIP)</span></div>
+      <div class="kpi"><span class="v">${active.length}</span><span class="k">Spool ระหว่างผลิต · เป็นงาน Assembly ${assyWip}</span></div>
       <div class="kpi"><span class="v">${sim.shipped}</span><span class="k">ส่งมอบแล้ว</span></div>
       <div class="kpi"><span class="v">${avg.toFixed(1)}</span><span class="k">Lead time เฉลี่ย (ชม.)</span></div>
-      <div class="kpi"><span class="v" style="color:var(--bad)">${sim.ncr}</span><span class="k">NCR สะสม · เปิด ${openNcr}</span></div>
+      <div class="kpi"><span class="v" style="color:var(--bad)">${sim.ncr}</span><span class="k">NCR สะสม · เปิด ${active.filter(s => s.ncrOpen).length}</span></div>
+      <div class="kpi"><span class="v">${headcount()}</span><span class="k">คนในพื้นที่ตอนนี้</span></div>
+      <div class="kpi"><span class="v">${spools.filter(s => s.escort).length}</span><span class="k">กำลังยกย้าย Spool</span></div>
     </div>
     <div class="rows">
       <div class="label">คอขวดตอนนี้</div>
-      <button class="list-btn btn" data-st="${b.i}" type="button" style="text-align:left">
+      <button class="btn" data-st="${b.i}" type="button" style="text-align:left">
         <span class="pill ${stationState(b.i)}">${STATE_TXT[stationState(b.i)]}</span>
-        <b>${ST[b.i].no} ${ST[b.i].short}</b> · รอคิว ${b.q} · ใช้งาน ${(b.u*100).toFixed(0)}%</button>
+        <b>${ST[b.i].no} ${esc(ST[b.i].short)}</b> · รอคิว ${b.q} · ใช้งาน ${(b.u*100).toFixed(0)}%</button>
     </div>
     <div class="rows">
       <div class="label">อัตราการใช้งานสถานี</div>
-      ${ST.map((st,i) => `<div class="row" style="align-items:center"><span>${st.no} ${esc(st.short)}</span><span style="flex:0 0 120px"><span class="bar"><i style="width:${(stRun[i].util*100).toFixed(0)}%;background:var(--${stationState(i) === 'ok' ? 'accent' : stationState(i)})"></i></span></span></div>`).join('')}
+      ${ORDER.map(i => `<div class="row" style="align-items:center"><span>${ST[i].assy ? '↳ ' : ''}${ST[i].no} ${esc(ST[i].short.replace(/^A\d /,''))}</span><span style="flex:0 0 110px"><span class="bar"><i style="width:${(stRun[i].util*100).toFixed(0)}%;background:var(--${stationState(i) === 'ok' ? 'accent' : stationState(i)})"></i></span></span></div>`).join('')}
     </div>
     <div class="rows">
       <div class="label">งานตามโครงการ</div>
-      ${JOBS.map(j => { const n = active.filter(s => s.job === j).length; return `<div class="row"><span><i style="display:inline-block;width:10px;height:10px;background:${j.color};border-radius:2px;margin-right:6px"></i>${esc(j.code)}</span><span class="mono">${n} WIP</span></div>`; }).join('')}
+      ${JOBS.map(j => `<div class="row"><span><i style="display:inline-block;width:10px;height:10px;background:${j.color};border-radius:2px;margin-right:6px"></i>${esc(j.code)}</span><span class="mono">${active.filter(s => s.job === j).length} WIP</span></div>`).join('')}
     </div>
     <p class="note" style="margin:0">ตัวเลขทั้งหมดในหน้านี้มาจากการจำลอง ใช้แสดงแนวคิด ERP 3D ยังไม่ได้เชื่อมกับข้อมูลจริงของโรงงาน</p>`;
 }
 function stationPanel(i){
   const st = ST[i], r = stRun[i], state = stationState(i);
   const items = [...r.work.map(s => ({s, w:true})), ...r.queue.map(s => ({s, w:false}))];
+  const fp = st.kind === 'fp' ? `<div class="kpis"><div class="kpi"><span class="v">${r.work.filter(s => !fpZone(s)).length}</span><span class="k">ช่วงที่ 1 · Flushing</span></div><div class="kpi"><span class="v">${r.work.filter(s => fpZone(s)).length}</span><span class="k">ช่วงที่ 2 · Passivation</span></div></div>` : '';
   return `
     <button class="back" data-back type="button">← ภาพรวม</button>
-    <div><div class="eyebrow">กระบวนการ ${st.no} · ${st.wi}</div><h2>${esc(st.th)}</h2><div class="label" style="text-transform:none;letter-spacing:0">${esc(st.en)}</div></div>
+    <div><div class="eyebrow">${st.assy ? 'ASSEMBLY SPOOL LINE · ' : 'กระบวนการ '}${st.no} · ${esc(st.wi)}</div><h2>${esc(st.th)}</h2><div class="label" style="text-transform:none;letter-spacing:0">${esc(st.en)}</div></div>
     <div><span class="pill ${state}">${STATE_TXT[state]}</span></div>
     <div class="kpis">
       <div class="kpi"><span class="v">${r.work.length}/${st.cap}</span><span class="k">กำลังทำ / ช่องงาน</span></div>
@@ -686,41 +815,50 @@ function stationPanel(i){
       <div class="kpi"><span class="v">${(r.util*100).toFixed(0)}%</span><span class="k">อัตราการใช้งาน</span></div>
       <div class="kpi"><span class="v">${r.done}</span><span class="k">ผ่านสถานีแล้ว</span></div>
     </div>
+    ${fp}
     <div class="rows">
-      <div class="row"><span>ผู้รับผิดชอบ</span><span>${esc(st.pic)}</span></div>
+      <div class="row"><span>ทีมประจำสถานี</span><span>${st.crew.map(c => esc(c[1])).join(', ')}</span></div>
       <div class="row"><span>จุดควบคุม</span><span>${esc(st.ctrl)}</span></div>
-      <div class="row"><span>เวลามาตรฐาน</span><span class="mono">${st.t} ชม. / spool (4 joints)</span></div>
-      <div class="row"><span>Procedure</span><span class="mono">${st.wi}</span></div>
-      <div class="row"><span>ITP</span><span class="mono">${st.qc}</span></div>
+      <div class="row"><span>เวลามาตรฐาน</span><span class="mono">${st.t} ชม. / spool</span></div>
+      <div class="row"><span>Procedure</span><span class="mono">${esc(st.wi)}</span></div>
+      <div class="row"><span>ITP</span><span class="mono">${esc(st.qc)}</span></div>
     </div>
     <div class="rows"><div class="label">แบบฟอร์มบันทึกคุณภาพ (QR)</div>
-      <div class="chips">${st.qr.map(q => `<span class="chip">WI-QR-PIPE-${q}</span>`).join('')}</div></div>
+      <div class="chips">${st.qr.map(q => `<span class="chip">${st.assy ? esc(q) : 'WI-QR-PIPE-' + q}</span>`).join('')}</div></div>
     <div class="rows"><div class="label">Spool ที่สถานีนี้ (${items.length})</div>
-      <div class="list">${items.slice(0,14).map(({s,w}) => `<button type="button" data-sp="${s.id}"><span class="mono">${s.id}</span><span>${s.size} ${s.mat} · ${w ? '<span class="pill info">กำลังทำ</span>' : '<span class="pill warn">รอคิว</span>'}</span></button>`).join('') || '<span class="note">ว่าง</span>'}</div></div>`;
+      <div class="list">${items.slice(0,14).map(({s,w}) => `<button type="button" data-sp="${s.id}"><span class="mono">${s.id}</span><span>${s.size} ${s.mat} · ${w ? `<span class="pill info">${st.kind === 'fp' ? st.subs[fpZone(s)] : 'กำลังทำ'}</span>` : '<span class="pill warn">รอคิว</span>'}</span></button>`).join('') || '<span class="note">ว่าง</span>'}</div></div>`;
 }
 function spoolPanel(s){
   const curIdx = s.shippedAt ? 99 : s.step;
-  const allSteps = [0,1,2,3,4,5,6,7,8,9];
+  const tm = t => { const c = clockTxt(Math.max(0, t)); return `D${c[0]} ${c[1]}`; };
   return `
     <button class="back" data-back type="button">← ภาพรวม</button>
     <div><div class="eyebrow">SPOOL TRAVELLER</div><h2 class="mono">${s.id}</h2><div class="label" style="text-transform:none;letter-spacing:0">${esc(s.job.code)} · ${esc(s.job.name)}</div></div>
-    <div>${s.shippedAt ? '<span class="pill ok">ส่งมอบแล้ว</span>' : `<span class="pill info">${esc(where(s))}</span>`} ${s.ncr ? `<span class="pill bad">NCR ×${s.ncr}</span>` : ''}</div>
+    <div>${s.shippedAt ? '<span class="pill ok">ส่งมอบแล้ว</span>' : `<span class="pill info">${esc(where(s))}</span>`} ${s.assy ? '<span class="pill" style="background:color-mix(in srgb,#8A6BD1 18%,transparent);color:#8A6BD1">Assembly spool</span>' : ''} ${s.ncr ? `<span class="pill bad">NCR ×${s.ncr}</span>` : ''}</div>
     <div class="rows">
       <div class="row"><span>ขนาด / วัสดุ</span><span class="mono">${s.size} Sch10S · ${s.mat}</span></div>
       <div class="row"><span>Heat No.</span><span class="mono">${s.heat}</span></div>
-      <div class="row"><span>ประเภทรอยต่อ</span><span>${s.groove ? 'Grooved coupling' : 'Butt weld GTAW'} · ${s.joints} joints</span></div>
+      <div class="row"><span>รอยต่อ</span><span>${s.groove ? 'ขึ้นร่อง Groove + เชื่อม GTAW' : 'เชื่อม GTAW'} · ${s.joints} joints</span></div>
+      <div class="row"><span>ประเภทงาน</span><span>${s.assy ? 'Assembly spool (ประกอบวาล์ว/อุปกรณ์)' : 'Single spool'}</span></div>
       <div class="row"><span>ลูกค้า / ไซต์</span><span>${esc(s.job.client)}</span></div>
       <div class="row"><span>อายุงานในโรงงาน</span><span class="mono">${fmtH((s.shippedAt ?? sim.t) - s.born)}</span></div>
-      ${s.lastNcr ? `<div class="row"><span>NCR ล่าสุด</span><span>ตกที่ ${s.lastNcr.at} → ส่งกลับไปแก้ที่ ${s.groove ? '05' : '04'}</span></div>` : ''}
+      ${s.lastNcr ? `<div class="row"><span>NCR ล่าสุด</span><span>ตกที่ ${s.lastNcr.at} → ส่งกลับไปแก้ที่ ${s.lastNcr.back}</span></div>` : ''}
     </div>
     <div><div class="label" style="margin-bottom:4px">ความคืบหน้า</div><div class="bar"><i style="width:${(progressOf(s)*100).toFixed(0)}%"></i></div></div>
-    <div class="route">${allSteps.map(i => {
+    <div class="route">${ORDER.map(i => {
         const ri = s.route.indexOf(i);
-        if (ri < 0) return `<div class="st skip"><span class="dot"></span><span>${ST[i].no} ${esc(ST[i].short)}</span><span class="label">ไม่ใช้</span></div>`;
+        const name = `${ST[i].assy ? '↳ ' : ''}${ST[i].no} ${esc(ST[i].short.replace(/^A\d /,''))}`;
+        if (ri < 0) return `<div class="st skip"><span class="dot"></span><span>${name}</span><span class="label">ไม่ใช้</span></div>`;
         const cls = ri < curIdx ? 'done' : ri === curIdx ? 'now' : '';
         const lg = s.log[i];
-        const tm = lg && lg.end !== undefined ? clockTxt(Math.max(0,lg.end)) : null;
-        return `<div class="st ${cls}"><span class="dot"></span><span>${ST[i].no} ${esc(ST[i].short)}</span><span class="mono label" style="letter-spacing:0">${cls === 'done' && tm ? `D${tm[0]} ${tm[1]}` : cls === 'now' ? 'NOW' : ''}</span></div>`;
+        let right = cls === 'done' && lg && lg.end !== undefined ? tm(lg.end) : cls === 'now' ? 'NOW' : '';
+        let extra = '';
+        if (ST[i].kind === 'fp' && lg && lg.start !== undefined && (cls === 'done' || (cls === 'now' && s.phase === 'work'))){
+          const z = cls === 'done' ? 2 : fpZone(s);
+          extra = `<div class="st sub ${z >= 1 ? 'done' : 'now'}"><span class="dot"></span><span>Flushing</span><span class="mono label" style="letter-spacing:0">${lg.flushEnd !== undefined ? tm(lg.flushEnd) : 'NOW'}</span></div>
+                   <div class="st sub ${z >= 2 ? 'done' : z === 1 ? 'now' : ''}"><span class="dot"></span><span>Passivation</span><span class="mono label" style="letter-spacing:0">${z >= 2 && lg.end !== undefined ? tm(lg.end) : z === 1 ? 'NOW' : ''}</span></div>`;
+        }
+        return `<div class="st ${cls}"><span class="dot"></span><span>${name}</span><span class="mono label" style="letter-spacing:0">${right}</span></div>${extra}`;
       }).join('')}</div>`;
 }
 $('#side').addEventListener('click', e => {
@@ -733,11 +871,11 @@ $('#side').addEventListener('click', e => {
 function renderRail(){
   const rail = $('#rail');
   if (!rail.children.length){
-    rail.innerHTML = ST.map((st,i) => `<button class="stc" type="button" data-i="${i}" aria-pressed="false"><span class="n">${st.no} · ${st.wi}</span><span class="t" title="${esc(st.th)}">${esc(st.short)}</span><span class="q"><span>ทำ <b data-w>0</b>/${st.cap}</span><span>คิว <b data-q>0</b></span></span><span class="bar"><i data-u style="width:0%"></i></span></button>`).join('');
+    rail.innerHTML = ORDER.map(i => { const st = ST[i]; return `<button class="stc${st.assy ? ' assy' : ''}" type="button" data-i="${i}" aria-pressed="false"><span class="n" title="${esc(st.wi)}">${st.no}${st.assy ? ' · Assembly' : ''}</span><span class="t" title="${esc(st.th)}">${esc(st.short.replace(/^A\d /,''))}</span><span class="q"><span>ทำ <b data-w>0</b>/${st.cap}</span><span>คิว <b data-q>0</b></span></span><span class="bar"><i data-u style="width:0%"></i></span></button>`; }).join('');
     rail.addEventListener('click', e => { const b = e.target.closest('.stc'); if (!b) return; const i = +b.dataset.i; select({station: i}); flyStation(i); });
   }
-  [...rail.children].forEach((b, i) => {
-    const s = stationState(i);
+  [...rail.children].forEach(b => {
+    const i = +b.dataset.i, s = stationState(i);
     b.classList.toggle('warn', s === 'warn'); b.classList.toggle('bad', s === 'bad');
     b.setAttribute('aria-pressed', selection.station === i ? 'true' : 'false');
     b.querySelector('[data-w]').textContent = stRun[i].work.length;
@@ -746,7 +884,9 @@ function renderRail(){
   });
 }
 $('#legend').innerHTML = JOBS.map(j => `<span><i style="background:${j.color}"></i>${esc(j.code)}</span>`).join('') +
-  `<span><i style="background:#ff4d4d;border-radius:50%"></i>Spool ติด NCR</span><span><i style="background:var(--ok)"></i>สถานีปกติ</span><span><i style="background:var(--warn)"></i>รอคิว ≥ 4</span><span><i style="background:var(--bad)"></i>คอขวด ≥ 8</span>`;
+  `<span><i style="background:#ff4d4d;border-radius:50%"></i>Spool ติด NCR</span><span><i style="background:#8A6BD1"></i>Assembly Spool Line</span>` +
+  `<span><i style="background:#E8762C"></i>ช่าง · <i style="background:#2F6FD6;margin-left:4px"></i>QC · <i style="background:#7C5CC9;margin-left:4px"></i>ยกย้าย</span>` +
+  `<span><i style="background:var(--ok)"></i>ปกติ <i style="background:var(--warn);margin-left:6px"></i>คิว ≥ 4 <i style="background:var(--bad);margin-left:6px"></i>≥ 8</span>`;
 
 /* ---------- Master Plan (FM-PIPE-00-1, example rows) ---------- */
 const PLAN = [
@@ -807,18 +947,18 @@ function renderPlan(){
 
 function renderSpools(){
   const list = [...spools].sort((a,b) => (!!a.shippedAt - !!b.shippedAt) || a.id.localeCompare(b.id));
-  $('#p-spool').innerHTML = `<div class="scroll"><table style="min-width:820px">
-    <thead><tr><th>Spool No.</th><th>โครงการ</th><th>ขนาด / วัสดุ</th><th>Heat No.</th><th>รอยต่อ</th><th>ตำแหน่งปัจจุบัน</th><th>NCR</th><th style="width:140px">ความคืบหน้า</th></tr></thead>
-    <tbody>${list.map(s => `<tr class="clk" data-sp="${s.id}"><td class="mono">${s.id}</td><td><i style="display:inline-block;width:8px;height:8px;background:${s.job.color};border-radius:2px;margin-right:6px"></i>${esc(s.job.code)}</td><td class="mono">${s.size} ${s.mat}</td><td class="mono">${s.heat}</td><td>${s.groove ? 'Groove' : 'Weld'} ×${s.joints}</td><td>${esc(where(s))}</td><td class="num">${s.ncr ? `<span class="pill bad">${s.ncr}</span>` : '—'}</td><td><div class="bar"><i style="width:${(progressOf(s)*100).toFixed(0)}%"></i></div></td></tr>`).join('')}</tbody></table></div>
+  $('#p-spool').innerHTML = `<div class="scroll"><table style="min-width:860px">
+    <thead><tr><th>Spool No.</th><th>โครงการ</th><th>ประเภท</th><th>ขนาด / วัสดุ</th><th>Heat No.</th><th>รอยต่อ</th><th>ตำแหน่งปัจจุบัน</th><th>NCR</th><th style="width:130px">ความคืบหน้า</th></tr></thead>
+    <tbody>${list.map(s => `<tr class="clk" data-sp="${s.id}"><td class="mono">${s.id}</td><td><i style="display:inline-block;width:8px;height:8px;background:${s.job.color};border-radius:2px;margin-right:6px"></i>${esc(s.job.code)}</td><td>${s.assy ? 'Assembly' : 'Single'}</td><td class="mono">${s.size} ${s.mat}</td><td class="mono">${s.heat}</td><td>${s.groove ? 'Groove + Weld' : 'Weld'} ×${s.joints}</td><td>${esc(where(s))}</td><td class="num">${s.ncr ? `<span class="pill bad">${s.ncr}</span>` : '—'}</td><td><div class="bar"><i style="width:${(progressOf(s)*100).toFixed(0)}%"></i></div></td></tr>`).join('')}</tbody></table></div>
     <p class="note">คลิกแถวเพื่อเปิด Spool Traveller และไฮไลต์ในภาพ 3 มิติ · ข้อมูลจำลอง</p>`;
 }
-$('#p-spool').addEventListener('click', e => { const tr = e.target.closest('[data-sp]'); if (!tr) return; const s = spools.find(o => o.id === tr.dataset.sp); if (s){ select({spool: s}); const p = s.mesh.position; flyTo(new THREE.Vector3(p.x + 4, 8, p.z + 10), p.clone()); stage.scrollIntoView({behavior:'smooth', block:'center'}); } });
+$('#p-spool').addEventListener('click', e => { const tr = e.target.closest('[data-sp]'); if (!tr) return; const s = spools.find(o => o.id === tr.dataset.sp); if (s && s.mesh){ select({spool: s}); const p = s.mesh.position; flyTo(new THREE.Vector3(p.x + 4, 8, p.z + 10), p.clone()); stage.scrollIntoView({behavior:'smooth', block:'center'}); } });
 
 function renderDocs(){
-  $('#p-docs').innerHTML = `<div class="scroll"><table style="min-width:760px">
+  $('#p-docs').innerHTML = `<div class="scroll"><table style="min-width:780px">
     <thead><tr><th>No.</th><th>กระบวนการ</th><th>Procedure (QP)</th><th>ITP (QC)</th><th>Quality Records (QR)</th><th>จุดควบคุม</th></tr></thead>
-    <tbody>${ST.map((st,i) => `<tr class="clk" data-st="${i}"><td class="mono">${st.no}</td><td><b>${esc(st.th)}</b><br><span class="label" style="text-transform:none;letter-spacing:0">${esc(st.en)}</span></td><td class="mono">${st.wi}</td><td class="mono">${st.qc}</td><td><div class="chips">${st.qr.map(q => `<span class="chip">WI-QR-PIPE-${q}</span>`).join('')}</div></td><td>${esc(st.ctrl)}</td></tr>`).join('')}</tbody></table></div>
-    <p class="note">อ้างอิง QP-PIPE-01 Stainless Steel Pipe Assembly Control §5.2 · กระบวนการ 05 Groove เป็นทางเลือกแทนการเชื่อม ขึ้นกับแบบและสเปคของแต่ละโครงการ</p>`;
+    <tbody>${ORDER.map(i => { const st = ST[i]; return `<tr class="clk" data-st="${i}"><td class="mono">${st.no}</td><td><b>${st.assy ? '↳ ' : ''}${esc(st.th)}</b><br><span class="label" style="text-transform:none;letter-spacing:0">${esc(st.en)}</span></td><td class="mono">${esc(st.wi)}</td><td class="mono">${esc(st.qc)}</td><td><div class="chips">${st.qr.map(q => `<span class="chip">${st.assy ? esc(q) : 'WI-QR-PIPE-' + q}</span>`).join('')}</div></td><td>${esc(st.ctrl)}</td></tr>`; }).join('')}</tbody></table></div>
+    <p class="note">อ้างอิง QP-PIPE-01 §5.2 จัดลำดับใหม่ตามผังโรงงาน: Groove ก่อน Welding · Flushing และ Passivation อยู่สถานีเดียวกันและทำต่อเนื่อง · Final Inspection ใช้แบบฟอร์ม WI-QR-PIPE-10-4 · สาย Assembly Spool (A1–A3) แยกหลัง 08 และเข้า 09 Final Inspection ยังไม่มี WI รองรับ เสนอให้จัดทำ WI-PIPE-11</p>`;
 }
 $('#p-docs').addEventListener('click', e => { const tr = e.target.closest('[data-st]'); if (!tr) return; const i = +tr.dataset.st; select({station: i}); flyStation(i); stage.scrollIntoView({behavior:'smooth', block:'center'}); });
 
@@ -827,7 +967,6 @@ document.querySelectorAll('[role=tab]').forEach(t => t.addEventListener('click',
   if (t.id === 'tab-spool') renderSpools();
 }));
 
-/* controls */
 $('#playBtn').addEventListener('click', () => { sim.running = !sim.running; $('#playBtn').textContent = sim.running ? '❚❚ หยุดชั่วคราว' : '▶ เดินเครื่อง'; });
 $('#speedSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; sim.speed = +b.dataset.s; $('#speedSeg').querySelectorAll('button').forEach(o => o.setAttribute('aria-pressed', o === b)); });
 $('#addBtn').addEventListener('click', () => { const s = spawnAtReceiving(); select({spool: s}); });
@@ -836,30 +975,63 @@ $('#viewBtn').addEventListener('click', () => { select({}); flyTo(HOME.pos.clone
 /* ---------- main loop ---------- */
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let last = performance.now(), uiAcc = 0, tblAcc = 0, tAnim = 0;
+const tmpA = new THREE.Vector3(), UP = new THREE.Vector3(0,1,0);
 function frame(now){
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
-  if (sim.running){ const sdt = dt * sim.speed * 0.5; const n = Math.ceil(sdt / 0.05); for (let k=0;k<n;k++) tick(sdt/n); }
-  tAnim += dt;
+  const simDt = sim.running ? dt * sim.speed * 0.5 : 0;
+  if (simDt){ const n = Math.ceil(simDt / 0.05); for (let k=0;k<n;k++) tick(simDt/n); }
+  if (sim.running) tAnim += dt * Math.max(1, sim.speed / 2);
 
   for (const s of spools){
     if (!s.mesh) { s.mesh = spoolMesh(s); s.mesh.position.copy(spoolTarget(s)); }
     const tgt = spoolTarget(s);
-    if (s.phase === 'move') s.mesh.position.copy(tgt);
-    else s.mesh.position.lerp(tgt, 1 - Math.exp(-dt * 8));
+    if (s.phase === 'move'){
+      s.mesh.position.copy(tgt);
+      const ahead = pointOnPath(s.path, s.prog + 0.4).sub(tgt);
+      if (ahead.lengthSq() > 1e-4){
+        const yaw = Math.atan2(ahead.x, ahead.z);
+        s.mesh.rotation.y = yaw;
+        if (!s.escort && !s.shippedAt) s.escort = takeEscort();
+        const side = tmpA.set(ahead.z, 0, -ahead.x).normalize().multiplyScalar(0.45);
+        s.escort.position.set(tgt.x + side.x, 0, tgt.z + side.z);
+        s.escort.rotation.y = yaw;
+        posePerson(s.escort, 'carry', s.prog * 5);
+      }
+    } else {
+      freeEscort(s);
+      s.mesh.position.lerp(tgt, 1 - Math.exp(-dt * 8));
+      s.mesh.rotation.y += (0 - s.mesh.rotation.y) * Math.min(1, dt * 8);
+    }
     s.mesh.userData.ring.visible = !!s.ncrOpen;
+    s.mesh.userData.valve.visible = s.assy && s.step > s.route.indexOf(11);
+  }
+  for (const w of walkers){
+    if (!sim.running){ posePerson(w.p, 'idle', tAnim); continue; }
+    if (w.wait > 0){ w.wait -= dt; posePerson(w.p, 'work', tAnim + w.ph); if (w.wait <= 0) walkerNext(w); continue; }
+    w.prog += dt * 1.5 * Math.max(0.6, sim.speed / 2);
+    const pos = pointOnPath(w.path, w.prog), ahead = pointOnPath(w.path, w.prog + 0.3).sub(pos);
+    w.p.position.set(pos.x, 0, pos.z);
+    if (ahead.lengthSq() > 1e-4) w.p.rotation.y = Math.atan2(ahead.x, ahead.z);
+    posePerson(w.p, 'walk', w.prog * 4.2);
+    if (w.prog >= w.path.len){ w.wait = 1.6 + Math.random() * 1.6; const r = ROW[ST[w.stops[w.k]].row]; w.p.rotation.y = r.face > 0 ? Math.PI : 0; }
   }
   stations.forEach((o, i) => {
-    const st = stationState(i);
+    const st = stationState(i), r = stRun[i];
     if (st !== o.state){ o.state = st; o.padMat.color.setHex(STATE_COL[st]); o.edge.material.color.setHex(STATE_COL[st]); }
     o.padMat.opacity = selection.station === i ? 0.42 : 0.2;
-    const busy = stRun[i].work.length > 0 && sim.running;
+    o.crew.forEach((p, k) => {
+      const active = sim.running && (ST[i].crew.length === ST[i].cap ? r.work.some(s => s.slot === k) : r.work.length > k * (ST[i].cap / ST[i].crew.length) - 0.01 && r.work.length > 0);
+      posePerson(p, active && !reduce ? 'work' : 'idle', tAnim + i + k);
+    });
+    const busy = r.work.length > 0 && sim.running;
     const f = o.fx;
     if (f.light){ const on = busy && !reduce; f.light.intensity = on ? 1.2 + Math.random()*1.6 : 0; f.spark.visible = on && Math.random() > 0.25; }
     if (f.roll && busy && !reduce) f.roll.rotation.y += dt * 8;
     if (f.blade && busy && !reduce) f.blade.position.y = 1.0 + Math.sin(tAnim*6)*0.15;
-    if (f.gantry && busy && !reduce) f.gantry.position.z = 0.2 + Math.sin(tAnim*1.4)*0.8;
-    if (f.needle){ f.needle.rotation.z = busy ? -0.4 - Math.sin(tAnim*0.8)*0.6 : 0.9; }
-    if (f.water && busy && !reduce) f.water.position.y = 1.6 + Math.sin(tAnim*3)*0.04;
+    if (f.gantry && busy && !reduce) f.gantry.position.z = -0.3 + Math.sin(tAnim*1.4)*0.8;
+    if (f.needle) f.needle.rotation.z = busy ? -0.4 - Math.sin(tAnim*0.8)*0.6 : 0.9;
+    if (f.water && busy && !reduce) f.water.position.y = 1.55 + Math.sin(tAnim*3)*0.04;
+    if (f.hook && busy && !reduce) f.hook.position.y = 2.3 + Math.sin(tAnim*0.9)*0.3;
   });
   if (flight){
     flight.k = Math.min(1, flight.k + dt * 1.4);
@@ -884,9 +1056,8 @@ seed();
 applyTheme();
 resize();
 renderRail(); renderSide(); renderPlan(); renderSpools(); renderDocs();
-// redraw station labels once the Thai webfont is ready so canvas text uses it
 (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(() => {
-  stations.forEach((o, i) => { const pos = o.label.position.clone(); scene.remove(o.label); o.label = makeLabel(ST[i].short, `${ST[i].no} · ${ST[i].wi}`); o.label.position.copy(pos); scene.add(o.label); });
+  stations.forEach((o, i) => { const pos = o.label.position.clone(); scene.remove(o.label); o.label = makeLabel(ST[i].short, labelSub(ST[i]), ST[i].assy ? '#C3AEFF' : null); o.label.position.copy(pos); scene.add(o.label); });
 });
 requestAnimationFrame(frame);
 })();
