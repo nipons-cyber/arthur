@@ -1,0 +1,895 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pipe Workshop ERP 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a control-room console — 3D workshop floor on the left, ERP context panel on the right,
+   station rail beneath, then tabbed registers (Master Plan / Spool Register / QMS documents). */
+:root{
+  --bg:#EDF0F3; --panel:#FFFFFF; --panel-2:#F5F7F9; --ink:#17202A; --muted:#5A6674; --line:#D6DDE4;
+  --accent:#2F6FD6; --accent-ink:#FFFFFF; --scene:#E2E7EC; --floor:#C7CFD7; --grid:#AEB8C2;
+  --ok:#23915F; --warn:#C07A0A; --bad:#CF3B3B; --ok-bg:#E2F3EA; --warn-bg:#FBF0DC; --bad-bg:#FBE4E4;
+  --font-display:"Chakra Petch","IBM Plex Sans Thai",system-ui,sans-serif;
+  --font-body:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1318; --panel:#151C23; --panel-2:#1A222B; --ink:#E3E8ED; --muted:#8D99A6; --line:#26313C;
+    --accent:#6C9EFF; --accent-ink:#0B1220; --scene:#0F151B; --floor:#1A222B; --grid:#2A3540;
+    --ok:#3CC487; --warn:#E5A23A; --bad:#F06464; --ok-bg:#12291F; --warn-bg:#2C2210; --bad-bg:#2E1616;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1318; --panel:#151C23; --panel-2:#1A222B; --ink:#E3E8ED; --muted:#8D99A6; --line:#26313C;
+  --accent:#6C9EFF; --accent-ink:#0B1220; --scene:#0F151B; --floor:#1A222B; --grid:#2A3540;
+  --ok:#3CC487; --warn:#E5A23A; --bad:#F06464; --ok-bg:#12291F; --warn-bg:#2C2210; --bad-bg:#2E1616;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--font-body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 32px}
+h1,h2,h3{font-family:var(--font-display);margin:0;text-wrap:balance;letter-spacing:.01em}
+button,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;margin-bottom:12px}
+.brand{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 320px}
+.brand h1{font-size:22px;font-weight:700}
+.brand .sub{color:var(--muted);font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:6px 12px;cursor:pointer;line-height:1.3}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--panel)}
+.seg button{border:0;background:transparent;padding:6px 10px;cursor:pointer;font-family:var(--font-mono);font-size:12px}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.clock{font-family:var(--font-mono);font-size:13px;padding:6px 10px;border:1px dashed var(--line);border-radius:6px;color:var(--muted)}
+.clock b{color:var(--ink);font-weight:600}
+
+/* main console */
+.console{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:12px;align-items:stretch}
+.stage{position:relative;background:var(--scene);border:1px solid var(--line);border-radius:8px;overflow:hidden;min-height:520px}
+#scene{position:absolute;inset:0;display:block;width:100%;height:100%;cursor:grab}
+.stage .hint{position:absolute;left:12px;bottom:10px;font-size:12px;color:var(--muted);background:color-mix(in srgb,var(--panel) 80%,transparent);padding:4px 8px;border-radius:4px;pointer-events:none}
+.stage .legend{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:4px;font-size:12px;background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line);padding:8px 10px;border-radius:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.stage .sim-tag{position:absolute;left:12px;top:10px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;background:var(--warn-bg);color:var(--warn);border:1px solid color-mix(in srgb,var(--warn) 40%,transparent);padding:3px 8px;border-radius:4px}
+
+.side{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:14px;min-width:0;max-height:620px;overflow:auto}
+.side h2{font-size:18px}
+.side .eyebrow{font-family:var(--font-mono);font-size:12px;color:var(--accent)}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.kpi{background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:2px}
+.kpi .v{font-family:var(--font-mono);font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+.kpi .k{font-size:12px;color:var(--muted)}
+.rows{display:flex;flex-direction:column;gap:6px}
+.row{display:flex;justify-content:space-between;gap:10px;font-size:13px;border-bottom:1px dotted var(--line);padding-bottom:4px}
+.row span:first-child{color:var(--muted)}
+.row span:last-child{text-align:right}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-family:var(--font-mono);font-size:11px;border:1px solid var(--line);border-radius:4px;padding:2px 6px;background:var(--panel-2)}
+.pill{display:inline-block;font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px;letter-spacing:.03em}
+.pill.ok{background:var(--ok-bg);color:var(--ok)} .pill.warn{background:var(--warn-bg);color:var(--warn)} .pill.bad{background:var(--bad-bg);color:var(--bad)}
+.pill.info{background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent)}
+.bar{display:block;height:6px;background:var(--panel-2);border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.bar > i{display:block;height:100%;background:var(--accent)}
+.list{display:flex;flex-direction:column;gap:4px}
+.list button{display:flex;justify-content:space-between;gap:8px;text-align:left;border:1px solid var(--line);background:var(--panel-2);border-radius:5px;padding:5px 8px;cursor:pointer;font-size:12px}
+.list button:hover{border-color:var(--accent)}
+.route{display:flex;flex-direction:column;gap:0}
+.route .st{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;font-size:12.5px;padding:3px 0}
+.route .dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);margin-left:3px}
+.route .done .dot{background:var(--ok);border-color:var(--ok)}
+.route .now .dot{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 25%,transparent)}
+.route .skip{color:var(--muted);text-decoration:line-through}
+.back{align-self:flex-start;border:0;background:none;color:var(--accent);cursor:pointer;padding:0;font-size:13px}
+
+/* station rail */
+.rail{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px;margin-top:12px}
+.stc{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:7px 8px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:4px;min-width:0;border-top:3px solid var(--ok)}
+.stc.warn{border-top-color:var(--warn)} .stc.bad{border-top-color:var(--bad)}
+.stc[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:-1px}
+.stc .n{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+.stc .t{font-size:12px;font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stc .q{font-family:var(--font-mono);font-size:11px;color:var(--muted);display:flex;justify-content:space-between}
+
+/* tabs */
+.tabs{margin-top:16px;background:var(--panel);border:1px solid var(--line);border-radius:8px}
+.tablist{display:flex;gap:2px;border-bottom:1px solid var(--line);padding:6px 6px 0;flex-wrap:wrap}
+.tablist button{border:0;background:none;padding:8px 14px;cursor:pointer;border-bottom:2px solid transparent;font-weight:500;color:var(--muted)}
+.tablist button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tabpanel{padding:14px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;white-space:nowrap}
+td.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+tr.phase td{font-weight:600;background:var(--panel-2)}
+.gantt{position:relative;height:16px;min-width:360px}
+.gantt .pl{position:absolute;top:3px;height:10px;background:color-mix(in srgb,var(--accent) 28%,transparent);border-radius:2px}
+.gantt .ac{position:absolute;top:3px;height:10px;background:var(--accent);border-radius:2px}
+.gantt .ms{position:absolute;top:1px;width:12px;height:12px;background:var(--warn);transform:translateX(-6px) rotate(45deg);border-radius:1px}
+.gantt .sd{position:absolute;top:-6px;bottom:-6px;width:0;border-left:2px solid var(--bad)}
+.planhead{display:flex;flex-wrap:wrap;gap:8px 24px;margin-bottom:10px;font-size:13px}
+.planhead b{font-family:var(--font-mono)}
+.note{font-size:12px;color:var(--muted);margin-top:10px}
+tr.clk{cursor:pointer} tr.clk:hover td{background:var(--panel-2)}
+
+@media (max-width: 1100px){
+  .console{grid-template-columns:1fr}
+  .side{max-height:none}
+  .rail{grid-template-columns:repeat(5,minmax(0,1fr))}
+}
+@media (max-width: 560px){
+  .stage{min-height:380px}
+  .rail{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .brand h1{font-size:19px}
+  .stage .legend{display:none}
+}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important} }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <h1>Pipe Workshop ERP 3D</h1>
+    <div class="sub">SPK Distribution · Stainless Steel Pipe Fabrication (SS304L / SS316L) · ผังกระบวนการตาม QP-PIPE-01 ทั้ง 10 กระบวนการ</div>
+  </div>
+  <div class="controls">
+    <button class="btn primary" id="playBtn" type="button">❚❚ หยุดชั่วคราว</button>
+    <div class="seg" role="group" aria-label="ความเร็วจำลอง" id="speedSeg">
+      <button type="button" data-s="1" aria-pressed="false">1×</button>
+      <button type="button" data-s="2" aria-pressed="true">2×</button>
+      <button type="button" data-s="4" aria-pressed="false">4×</button>
+      <button type="button" data-s="8" aria-pressed="false">8×</button>
+    </div>
+    <button class="btn" id="addBtn" type="button">+ ปล่อย Spool ใหม่</button>
+    <button class="btn" id="viewBtn" type="button">มุมมองภาพรวม</button>
+    <span class="clock" id="clock">วันที่ <b>1</b> · <b>08:00</b></span>
+  </div>
+</header>
+
+<section class="console">
+  <div class="stage" id="stage">
+    <canvas id="scene" aria-label="ภาพ 3 มิติของโรงงานประกอบท่อ"></canvas>
+    <span class="sim-tag">ข้อมูลจำลอง · Simulation</span>
+    <div class="legend" id="legend"></div>
+    <span class="hint">ลากเพื่อหมุน · ล้อเมาส์เพื่อซูม · คลิกสถานีหรือ Spool เพื่อดูรายละเอียด</span>
+  </div>
+  <aside class="side" id="side" aria-live="polite"></aside>
+</section>
+
+<nav class="rail" id="rail" aria-label="สถานีงาน"></nav>
+
+<section class="tabs">
+  <div class="tablist" role="tablist">
+    <button role="tab" id="tab-plan" aria-selected="true" aria-controls="p-plan" type="button">แผนงานหลัก (Master Plan)</button>
+    <button role="tab" id="tab-spool" aria-selected="false" aria-controls="p-spool" type="button">ทะเบียน Spool (Traveller)</button>
+    <button role="tab" id="tab-docs" aria-selected="false" aria-controls="p-docs" type="button">เอกสาร QMS ต่อกระบวนการ</button>
+  </div>
+  <div class="tabpanel" id="p-plan" role="tabpanel" aria-labelledby="tab-plan"></div>
+  <div class="tabpanel" id="p-spool" role="tabpanel" aria-labelledby="tab-spool" hidden></div>
+  <div class="tabpanel" id="p-docs" role="tabpanel" aria-labelledby="tab-docs" hidden></div>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const tok = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- Process master data (QP-PIPE-01 §5.1–5.2) ---------- */
+const ST = [
+  {no:'01', th:'ตรวจรับและจัดเก็บวัตถุดิบ', short:'รับ/จัดเก็บวัตถุดิบ', en:'Material Acceptance & Storage', wi:'WI-PIPE-01', qc:'WI-QC-PIPE-01', qr:['01-1','01-2','01-3','01-4','01-5'], cap:3, t:1.5, kind:'store', ctrl:'Hold — ตรวจ MTC / Heat No. ก่อนปล่อยเข้าผลิต', pic:'Storekeeper + QC Inspector'},
+  {no:'02', th:'การตัดท่อ', short:'ตัดท่อ', en:'Cutting', wi:'WI-PIPE-02', qc:'WI-QC-PIPE-02', qr:['02-1','02-2','02-3','02-4'], cap:2, t:1.2, kind:'saw', ctrl:'ตรวจความยาว/มุมตัด ตาม Cutting List', pic:'Supervisor + Fitter'},
+  {no:'03', th:'การเตรียมประกอบท่อ', short:'Pre-fab / Fit-up', en:'Pre-fabrication (End prep, Fit-up, Tack)', wi:'WI-PIPE-03', qc:'WI-QC-PIPE-03', qr:['03-1','03-2','03-3','03-4'], cap:3, t:2.6, kind:'table', ctrl:'Fit-up inspection — ระยะ Gap / Alignment', pic:'Fitter + QC Inspector'},
+  {no:'04', th:'การเชื่อม', short:'เชื่อม GTAW', en:'Welding (GTAW + purge)', wi:'WI-PIPE-04', qc:'WI-QC-PIPE-04', qr:['04-1','04-2','04-3','03-3','03-4'], cap:4, t:4.5, kind:'weld', ctrl:'VT/PT 100% ตาม WPS ที่รับรอง', pic:'Welder (WPQ) + QC Inspector'},
+  {no:'05', th:'การต่อท่อแบบร่องรัด', short:'ขึ้นร่อง Groove', en:'Groove (Mechanical Grooved) Joining', wi:'WI-PIPE-05', qc:'WI-QC-PIPE-05', qr:['05-1'], cap:2, t:1.4, kind:'groove', ctrl:'ตรวจขนาดร่องตามสเปคผู้ผลิต Coupling', pic:'Operator'},
+  {no:'06', th:'การตรวจสอบขนาด', short:'ตรวจสอบขนาด', en:'Dimensional Verification', wi:'WI-PIPE-06', qc:'WI-QC-PIPE-06', qr:['06-1','06-2'], cap:2, t:1.0, kind:'cmm', ctrl:'Hold Point — เทียบแบบ Isometric / GA', pic:'QC Inspector'},
+  {no:'07', th:'การทดสอบแรงดัน', short:'ทดสอบแรงดัน', en:'Pressure Test (Hydro / Pneumatic)', wi:'WI-PIPE-07', qc:'WI-QC-PIPE-07', qr:['07-1'], cap:2, t:2.6, kind:'press', ctrl:'Witness Point — แจ้งลูกค้าล่วงหน้า', pic:'QC Manager'},
+  {no:'08', th:'การล้างและทำความสะอาดท่อ', short:'Flushing', en:'Flushing & Cleaning', wi:'WI-PIPE-08', qc:'WI-QC-PIPE-08', qr:['08-1','08-2'], cap:2, t:1.8, kind:'flush', ctrl:'ตรวจคุณภาพน้ำ / ความสะอาดภายใน', pic:'QC Inspector'},
+  {no:'09', th:'การทำ Passivation', short:'Passivation', en:'Passivation', wi:'WI-PIPE-09', qc:'WI-QC-PIPE-09', qr:['09-1','09-2','09-3'], cap:2, t:2.6, kind:'bath', ctrl:'Ferroxyl test — ไม่มี Free Iron', pic:'QC Inspector'},
+  {no:'10', th:'การบรรจุหีบห่อ', short:'บรรจุหีบห่อ', en:'Packaging', wi:'WI-PIPE-10', qc:'WI-QC-PIPE-10', qr:['10-1','10-2'], cap:2, t:1.3, kind:'pack', ctrl:'Hold Point — Final inspection ก่อนส่ง', pic:'Packing Lead + QC'},
+];
+
+const JOBS = [
+  {code:'PJ-2026-001', name:'Chilled Water Piping — Data Center Phase 1', client:'ABC Data Center Co., Ltd. (ตัวอย่างจาก FM-PIPE-00)', color:'#2F6FD6', pre:'CHW'},
+  {code:'SPK.CS061.26', name:'COOLIT-TCL Piping Installation', client:'DAMAC BKK03-DC01', color:'#14A39A', pre:'TCS'},
+];
+const SIZES = ['2"','3"','4"','6"','8"'];
+
+/* ---------- Simulation state ---------- */
+const sim = { t: 0, speed: 2, running: true, spawnIn: 0, seq: 0, shipped: 0, ncr: 0, cycles: [] };
+const spools = [];
+const stRun = ST.map(() => ({queue: [], work: [], done: 0, util: 0}));
+let rnd = mulberry(20261020);
+function mulberry(a){ return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+function newSpool(){
+  const job = JOBS[rnd() < 0.62 ? 0 : 1];
+  sim.seq++;
+  const groove = rnd() < 0.3;
+  const route = [0,1,2, groove ? 4 : 3, 5,6,7,8,9];
+  const s = {
+    id: `${job.pre}-${String(1000 + sim.seq)}`, job, groove,
+    size: SIZES[Math.floor(rnd()*SIZES.length)], mat: rnd() < 0.55 ? 'SS316L' : 'SS304L',
+    heat: 'H' + Math.floor(20000 + rnd()*70000), joints: 2 + Math.floor(rnd()*5),
+    route, step: 0, phase: 'move', remain: 0, slot: -1, path: null, pathLen: 0, prog: 0,
+    born: sim.t, log: {}, ncr: 0, shippedAt: null, mesh: null, toDock: false
+  };
+  spools.push(s);
+  return s;
+}
+
+/* ---------- Scene layout ---------- */
+const XTOP = [-16,-8,0,8,16], XBOT = [16,8,0,-8,-16];
+const sideOf = i => i < 5 ? -1 : 1;          // -1 = north row, +1 = south row
+const cxOf  = i => i < 5 ? XTOP[i] : XBOT[i-5];
+const flowOf = i => i < 5 ? 1 : -1;          // material flows +x on north row, -x on south row
+const laneZ = side => side * 1.3;
+const DOCK = new THREE.Vector3(-24, 0.6, 4.2);
+const RECV = new THREE.Vector3(-24, 0.6, -3.4);
+
+function workPos(i, k){ const c = ST[i].cap; return new THREE.Vector3(cxOf(i) + (k - (c-1)/2) * 0.95, 1.02, sideOf(i)*3.5); }
+function queuePos(i, q){
+  const x = cxOf(i) - flowOf(i) * (2.75 + (q % 3) * 0.42);
+  return new THREE.Vector3(x, 0.22 + Math.floor(q/3) * 0.4, sideOf(i)*3.5);
+}
+function buildPath(from, ti, toDock){
+  const target = toDock ? DOCK.clone() : queuePos(ti, stRun[ti].queue.length + 1);
+  const fs = from.z < 0 ? -1 : 1;
+  const ts = toDock ? 1 : sideOf(ti);
+  const pts = [from.clone(), new THREE.Vector3(from.x, 0.6, laneZ(fs)), new THREE.Vector3(target.x, 0.6, laneZ(fs)), new THREE.Vector3(target.x, 0.6, laneZ(ts)), target];
+  let len = 0; for (let k=1;k<pts.length;k++) len += pts[k].distanceTo(pts[k-1]);
+  return {pts, len};
+}
+function pointOnPath(path, d){
+  for (let k=1;k<path.pts.length;k++){
+    const seg = path.pts[k].distanceTo(path.pts[k-1]);
+    if (d <= seg || k === path.pts.length-1) return path.pts[k-1].clone().lerp(path.pts[k], seg ? Math.min(1, d/seg) : 1);
+    d -= seg;
+  }
+  return path.pts[path.pts.length-1].clone();
+}
+
+function startMove(s, fromPos, ti, toDock){
+  s.phase = 'move'; s.toDock = !!toDock; s.target = ti;
+  s.path = buildPath(fromPos, ti, toDock); s.prog = 0;
+}
+
+/* ---------- Sim tick (sim hours) ---------- */
+const MOVE_SPEED = 14; // m per sim-hour
+function tick(dt){
+  sim.t += dt;
+  sim.spawnIn -= dt;
+  const active = spools.filter(s => !s.shippedAt).length;
+  if (sim.spawnIn <= 0 && active < 46){ spawnAtReceiving(); sim.spawnIn = 1.1 + rnd()*0.7; }
+
+  ST.forEach((st, i) => {
+    const r = stRun[i];
+    for (const s of [...r.work]){
+      s.remain -= dt;
+      if (s.remain <= 0) finishAt(i, s);
+    }
+    while (r.work.length < st.cap && r.queue.length){
+      const s = r.queue.shift();
+      const used = new Set(r.work.map(w => w.slot));
+      let k = 0; while (used.has(k)) k++;
+      s.slot = k; s.phase = 'work'; s.remain = st.t * (0.7 + rnd()*0.6) * (s.joints/8 + 0.5);
+      s.log[i] = s.log[i] || {}; s.log[i].start = sim.t;
+      r.work.push(s);
+    }
+    const a = 1 - Math.exp(-dt/6);
+    r.util += ((r.work.length / st.cap) - r.util) * a;
+  });
+
+  for (const s of spools){
+    if (s.phase !== 'move') continue;
+    s.prog += MOVE_SPEED * dt;
+    if (s.prog >= s.path.len){
+      if (s.toDock){ s.phase = 'shipped'; s.shippedAt = sim.t; sim.shipped++; sim.cycles.push(sim.t - s.born); if (sim.cycles.length > 40) sim.cycles.shift(); }
+      else { s.phase = 'queue'; s.log[s.target] = s.log[s.target] || {}; s.log[s.target].in = sim.t; stRun[s.target].queue.push(s); }
+    }
+  }
+  // drop shipped spools after they've been visible on the truck for a while
+  for (let k = spools.length-1; k >= 0; k--){
+    const s = spools[k];
+    if (s.shippedAt && sim.t - s.shippedAt > 30){ if (s.mesh) { scene.remove(s.mesh); } spools.splice(k,1); }
+  }
+}
+function finishAt(i, s){
+  const r = stRun[i];
+  r.work.splice(r.work.indexOf(s), 1);
+  r.done++;
+  s.log[i].end = sim.t;
+  const from = workPos(i, s.slot);
+  // NCR: dimensional check or leak at pressure test sends the spool back to its joining station
+  const fail = (i === 5 && rnd() < 0.04) || (i === 6 && rnd() < 0.05);
+  if (fail){
+    s.ncr++; sim.ncr++; s.ncrOpen = true;
+    s.step = s.route.indexOf(s.groove ? 4 : 3);
+    s.lastNcr = {at: ST[i].no, t: sim.t};
+    startMove(s, from, s.route[s.step]);
+    return;
+  }
+  if (i === 6) s.ncrOpen = false;
+  s.step++;
+  if (s.step >= s.route.length) startMove(s, from, null, true);
+  else startMove(s, from, s.route[s.step]);
+}
+function spawnAtReceiving(){
+  const s = newSpool();
+  startMove(s, RECV.clone(), 0);
+  return s;
+}
+// pre-seed so the first frame shows a working floor
+function seed(){
+  const plan = [[0,3],[1,2],[2,4],[3,6],[4,1],[5,2],[6,3],[7,2],[8,3],[9,2]];
+  for (const [i, n] of plan){
+    for (let k=0;k<n;k++){
+      const s = newSpool();
+      if (i === 3 && s.groove) { s.groove = false; s.route[3] = 3; }
+      if (i === 4 && !s.groove) { s.groove = true; s.route[3] = 4; }
+      s.step = s.route.indexOf(i);
+      s.born = -(4 + s.step * 3 + rnd()*3);
+      for (let p=0;p<s.step;p++) s.log[s.route[p]] = {in: s.born + p*2.5, start: s.born + p*2.5 + .4, end: s.born + p*2.5 + 2};
+      s.phase = 'queue'; s.log[i] = {in: -1};
+      stRun[i].queue.push(s);
+    }
+  }
+  sim.shipped = 18; sim.ncr = 2;
+  sim.cycles = [31,28,34,30,27,36,29,33];
+  tick(0.0001);
+  for (let k=0;k<20;k++) tick(0.15);
+}
+
+/* ---------- Three.js scene ---------- */
+const canvas = $('#scene'), stage = $('#stage');
+const renderer = new THREE.WebGLRenderer({canvas, antialias: true});
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 400);
+const HOME = {pos: new THREE.Vector3(-6, 30, 34), tgt: new THREE.Vector3(-2, 0, 0)};
+camera.position.copy(HOME.pos);
+const controls = new THREE.OrbitControls(camera, canvas);
+controls.target.copy(HOME.tgt);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.maxPolarAngle = Math.PI * 0.47; controls.minDistance = 6; controls.maxDistance = 90;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 0.65));
+const sun = new THREE.DirectionalLight(0xffffff, 0.75);
+sun.position.set(-18, 34, 20); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, {left:-34, right:34, top:22, bottom:-22, near:1, far:90});
+scene.add(sun);
+
+const floorMat = new THREE.MeshStandardMaterial({color: 0xcccccc, roughness: 0.95});
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(64, 26), floorMat);
+floor.rotation.x = -Math.PI/2; floor.receiveShadow = true; floor.position.x = -3;
+scene.add(floor);
+let grid = null;
+const aisleMat = new THREE.MeshStandardMaterial({color: 0xE0B020, roughness: .8});
+for (const z of [-2.3, 2.3]){
+  for (let x = -26; x < 21; x += 1.6){
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.12), aisleMat);
+    m.rotation.x = -Math.PI/2; m.position.set(x, 0.012, z); scene.add(m);
+  }
+}
+
+const M = {
+  steel: new THREE.MeshStandardMaterial({color: 0xaab4bd, metalness: 0.35, roughness: 0.38}),
+  dark:  new THREE.MeshStandardMaterial({color: 0x39424c, metalness: 0.4, roughness: 0.6}),
+  blue:  new THREE.MeshStandardMaterial({color: 0x2f6fd6, metalness: 0.2, roughness: 0.5}),
+  yellow:new THREE.MeshStandardMaterial({color: 0xe0a21a, metalness: 0.2, roughness: 0.55}),
+  wood:  new THREE.MeshStandardMaterial({color: 0xb98a55, roughness: 0.85}),
+  red:   new THREE.MeshStandardMaterial({color: 0xcf3b3b, roughness: 0.5}),
+  water: new THREE.MeshStandardMaterial({color: 0x3aa0d8, transparent: true, opacity: 0.75, roughness: .2}),
+  acid:  new THREE.MeshStandardMaterial({color: 0x7ccf6a, transparent: true, opacity: 0.8, roughness: .2}),
+  curtain:new THREE.MeshStandardMaterial({color: 0xe36a1b, transparent: true, opacity: 0.45, side: THREE.DoubleSide}),
+  bench: new THREE.MeshStandardMaterial({color: 0x56616c, metalness: .5, roughness: .5}),
+};
+function box(w,h,d,mat,x,y,z,parent){ const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat); m.position.set(x,y,z); m.castShadow = m.receiveShadow = true; parent.add(m); return m; }
+function cyl(r,h,mat,x,y,z,parent,rot){ const m = new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,24), mat); m.position.set(x,y,z); if (rot) m.rotation.set(rot[0],rot[1],rot[2]); m.castShadow = m.receiveShadow = true; parent.add(m); return m; }
+
+const stations = [];   // {group, pad, padMat, fx}
+const pickables = [];
+const STATE_COL = {ok: 0x23915F, warn: 0xC07A0A, bad: 0xCF3B3B};
+
+function buildMachine(i, g){
+  const k = ST[i].kind, fx = {};
+  const s = 1; // machines sit at local z=0 (station centre), facing the aisle
+  switch (k){
+    case 'store': {
+      for (const x of [-1.8, 0, 1.8]){ box(0.15, 2.4, 1.6, M.blue, x, 1.2, 0, g); }
+      for (const y of [0.5, 1.2, 1.9]){ box(3.9, 0.08, 1.6, M.yellow, 0, y, 0, g);
+        for (let p=0;p<5;p++) cyl(0.12, 3.6, M.steel, 0, y+0.16, -0.6 + p*0.3, g, [0,0,Math.PI/2]); }
+      box(1.0, 0.9, 0.8, M.dark, 2.6, 0.45, 0.6, g); // MTC desk
+      break; }
+    case 'saw': {
+      box(3.4, 0.9, 1.2, M.dark, 0, 0.45, 0, g);
+      box(0.25, 1.6, 1.0, M.yellow, 0.4, 1.6, 0, g);
+      fx.blade = box(0.9, 0.12, 0.05, M.steel, 0.4, 1.0, 0.45, g);
+      cyl(0.1, 3.0, M.steel, -0.3, 1.0, 0.1, g, [0,0,Math.PI/2]);
+      break; }
+    case 'table': {
+      box(3.6, 0.1, 1.8, M.bench, 0, 0.95, 0, g);
+      for (const x of [-1.6,1.6]) for (const z of [-0.75,0.75]) box(0.1, 0.9, 0.1, M.dark, x, 0.45, z, g);
+      box(0.4, 0.4, 0.5, M.blue, -1.2, 1.2, 0, g); box(0.4, 0.4, 0.5, M.blue, 1.2, 1.2, 0, g);
+      cyl(0.16, 2.0, M.steel, 0, 1.18, 0, g, [0,0,Math.PI/2]);
+      break; }
+    case 'weld': {
+      for (const x of [-2.1, 2.1]) box(0.05, 2.2, 2.2, M.curtain, x, 1.1, 0, g);
+      box(4.2, 2.2, 0.05, M.curtain, 0, 1.1, -1.1, g);
+      box(0.8, 0.9, 0.7, M.blue, -1.4, 0.45, -0.5, g); box(0.8, 0.9, 0.7, M.blue, 1.4, 0.45, -0.5, g);
+      cyl(0.18, 1.2, M.dark, -0.5, 0.6, -0.6, g); cyl(0.18, 1.2, M.dark, 0.5, 0.6, -0.6, g); // argon bottles
+      fx.light = new THREE.PointLight(0x9fc8ff, 0, 7); fx.light.position.set(0, 1.4, 0.8); g.add(fx.light);
+      fx.spark = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), new THREE.MeshBasicMaterial({color: 0xdfeeff}));
+      fx.spark.position.set(0, 1.1, 1.0); g.add(fx.spark);
+      break; }
+    case 'groove': {
+      box(1.6, 1.0, 1.2, M.red, -0.6, 0.5, 0, g);
+      fx.roll = cyl(0.28, 0.3, M.steel, 0.4, 1.15, 0.3, g, [Math.PI/2,0,0]);
+      box(1.2, 0.8, 1.0, M.dark, 1.4, 0.4, 0, g);
+      break; }
+    case 'cmm': {
+      for (const x of [-1.8, 1.8]) box(0.15, 2.4, 0.15, M.yellow, x, 1.2, 0.2, g);
+      fx.gantry = box(3.75, 0.2, 0.3, M.yellow, 0, 2.4, 0.2, g);
+      box(3.4, 0.6, 1.4, M.dark, 0, 0.3, 0, g);
+      box(0.6, 1.2, 0.5, M.blue, 2.6, 0.6, -0.3, g);
+      break; }
+    case 'press': {
+      box(3.6, 0.5, 1.4, M.dark, 0, 0.25, 0, g);
+      cyl(0.5, 1.6, M.blue, -2.2, 0.8, -0.2, g);
+      fx.gauge = cyl(0.35, 0.08, M.steel, -2.2, 1.9, 0.3, g, [Math.PI/2,0,0]);
+      fx.needle = box(0.04, 0.28, 0.02, M.red, -2.2, 1.9, 0.36, g);
+      cyl(0.08, 3.0, M.steel, 0.2, 0.62, -0.4, g, [0,0,Math.PI/2]);
+      break; }
+    case 'flush': {
+      cyl(0.9, 1.8, M.steel, -0.8, 0.9, -0.2, g);
+      fx.water = cyl(0.85, 0.06, M.water, -0.8, 1.6, -0.2, g);
+      box(1.2, 0.8, 0.8, M.blue, 1.3, 0.4, -0.2, g);
+      cyl(0.08, 2.0, M.steel, 0.3, 1.2, 0.5, g, [0,0,Math.PI/2]);
+      break; }
+    case 'bath': {
+      box(3.6, 0.9, 1.6, M.bench, 0, 0.45, -0.1, g);
+      fx.acid = box(3.4, 0.05, 1.4, M.acid, 0, 0.88, -0.1, g);
+      box(0.5, 1.4, 0.5, M.yellow, 2.3, 0.7, -0.3, g);
+      break; }
+    case 'pack': {
+      for (let a=0;a<3;a++) for (let b=0;b<2;b++) box(1.1, 0.7, 1.0, M.wood, -1.2 + a*1.2, 0.35 + b*0.72, -0.3, g);
+      box(0.6, 1.6, 0.6, M.dark, 2.4, 0.8, -0.2, g);
+      break; }
+  }
+  return fx;
+}
+
+function makeLabel(text, sub){
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128;
+  const x = c.getContext('2d');
+  x.fillStyle = 'rgba(16,22,30,0.86)';
+  const r = 22; x.beginPath(); x.moveTo(r,0); x.arcTo(512,0,512,128,r); x.arcTo(512,128,0,128,r); x.arcTo(0,128,0,0,r); x.arcTo(0,0,512,0,r); x.fill();
+  x.fillStyle = '#7FB0FF'; x.font = '600 34px "JetBrains Mono", monospace'; x.fillText(sub, 26, 52);
+  x.fillStyle = '#FFFFFF'; x.font = '600 40px "IBM Plex Sans Thai", "Chakra Petch", sans-serif'; x.fillText(text, 26, 104);
+  const tex = new THREE.CanvasTexture(c); tex.anisotropy = 4;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({map: tex, depthWrite: false}));
+  sp.scale.set(4.2, 1.05, 1);
+  return sp;
+}
+
+ST.forEach((st, i) => {
+  const g = new THREE.Group();
+  const side = sideOf(i);
+  g.position.set(cxOf(i), 0, side * 6.4);
+  if (side > 0) g.rotation.y = Math.PI; // south row faces the aisle too
+  const padMat = new THREE.MeshStandardMaterial({color: STATE_COL.ok, transparent: true, opacity: 0.22, roughness: 1});
+  const pad = new THREE.Mesh(new THREE.PlaneGeometry(6.6, 6.2), padMat);
+  pad.rotation.x = -Math.PI/2; pad.position.set(0, 0.015, 1.9); g.add(pad); // extends toward the aisle
+  const edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(6.6, 6.2)), new THREE.LineBasicMaterial({color: STATE_COL.ok}));
+  edge.rotation.x = -Math.PI/2; edge.position.set(0, 0.02, 1.9); g.add(edge);
+  const fx = buildMachine(i, g);
+  // work bench in front of machine (toward aisle)
+  scene.add(g);
+  const bench = new THREE.Mesh(new THREE.BoxGeometry(st.cap * 0.95 + 0.5, 0.12, 0.5), M.bench);
+  bench.position.set(cxOf(i), 0.84, side*3.5 - side*0.75); bench.castShadow = true; scene.add(bench);
+  const bench2 = bench.clone(); bench2.position.z = side*3.5 + side*0.75; scene.add(bench2);
+  for (const b of [bench, bench2]) for (const dx of [-1,1]){ const leg = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.8, 0.1), M.dark); leg.position.set(b.position.x + dx*(st.cap*0.47+0.15), 0.4, b.position.z); scene.add(leg); }
+  const lab = makeLabel(st.short, `${st.no} · ${st.wi}`);
+  lab.position.set(cxOf(i), 4.1, side*6.6);
+  scene.add(lab);
+  g.traverse(o => { o.userData.station = i; });
+  pad.userData.station = i;
+  pickables.push(g);
+  stations.push({group: g, padMat, edge, fx, label: lab, state: 'ok'});
+});
+
+// receiving & shipping docks
+(function docks(){
+  const truck = new THREE.Group();
+  box(3.0, 0.3, 6.0, M.dark, 0, 0.9, 0, truck);
+  box(3.0, 2.0, 1.6, M.blue, 0, 1.9, -3.6, truck);
+  for (const z of [-3.2, 1.8]) for (const x of [-1.4, 1.4]) cyl(0.45, 0.4, M.dark, x, 0.45, z, truck, [0,0,Math.PI/2]);
+  truck.position.set(-26.5, 0, 6.2); truck.rotation.y = Math.PI/2; scene.add(truck);
+  const t2 = truck.clone(); t2.position.set(-26.5, 0, -6.2); scene.add(t2);
+  const a = makeLabel('ท่าส่งสินค้า', 'DISPATCH'); a.position.set(-24, 3.8, 6.4); scene.add(a);
+  const b = makeLabel('ท่ารับวัตถุดิบ', 'RECEIVING'); b.position.set(-24, 3.8, -6.4); scene.add(b);
+})();
+
+/* spool meshes */
+const geo = {
+  pipe: new THREE.CylinderGeometry(0.16, 0.16, 2.0, 20),
+  flange: new THREE.CylinderGeometry(0.26, 0.26, 0.07, 20),
+  band: new THREE.CylinderGeometry(0.168, 0.168, 0.22, 20),
+  ring: new THREE.TorusGeometry(0.3, 0.05, 8, 24),
+};
+const pipeMat = new THREE.MeshStandardMaterial({color: 0xd2d8de, metalness: 0.3, roughness: 0.32});
+const jobMat = JOBS.map(j => new THREE.MeshStandardMaterial({color: new THREE.Color(j.color), roughness: .5}));
+const ncrMat = new THREE.MeshBasicMaterial({color: 0xff4d4d});
+const selMat = new THREE.MeshBasicMaterial({color: 0x6C9EFF});
+function spoolMesh(s){
+  const g = new THREE.Group();
+  const p = new THREE.Mesh(geo.pipe, pipeMat); p.castShadow = true; g.add(p);
+  for (const y of [-1.0, 1.0]){ const f = new THREE.Mesh(geo.flange, pipeMat); f.position.y = y; f.castShadow = true; g.add(f); }
+  const b = new THREE.Mesh(geo.band, jobMat[JOBS.indexOf(s.job)]); b.position.y = 0.45; g.add(b);
+  const ring = new THREE.Mesh(geo.ring, ncrMat); ring.rotation.x = Math.PI/2; ring.visible = false; g.add(ring);
+  const sel = new THREE.Mesh(geo.ring, selMat); sel.rotation.x = Math.PI/2; sel.position.y = -0.3; sel.visible = false; g.add(sel);
+  g.rotation.x = Math.PI/2;
+  g.userData = {spool: s, ring, sel};
+  g.traverse(o => { o.userData.spool = s; });
+  scene.add(g);
+  return g;
+}
+function spoolTarget(s){
+  if (s.phase === 'move') return pointOnPath(s.path, s.prog);
+  if (s.phase === 'work') return workPos(s.route[s.step], s.slot);
+  if (s.phase === 'queue') { const i = s.route[s.step]; return queuePos(i, stRun[i].queue.indexOf(s)); }
+  // shipped → on the dispatch truck
+  const n = spools.filter(o => o.shippedAt && o.shippedAt <= s.shippedAt).length - 1;
+  return new THREE.Vector3(-26.5 - 1.2 + (n % 6) * 0.45, 1.25 + Math.floor(n/6)%4 * 0.36, 6.2);
+}
+
+/* theme → scene colours */
+function applyTheme(){
+  scene.background = new THREE.Color(tok('--scene') || '#E2E7EC');
+  floorMat.color.set(tok('--floor') || '#C7CFD7');
+  if (grid) scene.remove(grid);
+  const gc = new THREE.Color(tok('--grid') || '#AEB8C2');
+  grid = new THREE.GridHelper(64, 64, gc, gc); grid.position.set(-3, 0.005, 0);
+  grid.material.transparent = true; grid.material.opacity = 0.35; grid.scale.z = 26/64;
+  scene.add(grid);
+  for (const s of spools) if (s.mesh) s.mesh.userData.sel.material = selMat;
+  selMat.color.set(tok('--accent') || '#2F6FD6');
+}
+new MutationObserver(applyTheme).observe(document.documentElement, {attributes: true, attributeFilter: ['data-theme']});
+try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme); } catch (e) {}
+
+function resize(){
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / Math.max(1, h); camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stage);
+
+/* camera flights */
+let flight = null;
+function flyTo(pos, tgt){ flight = {p0: camera.position.clone(), t0: controls.target.clone(), p1: pos, t1: tgt, k: 0}; }
+function flyStation(i){
+  const side = sideOf(i), x = cxOf(i);
+  flyTo(new THREE.Vector3(x + 2.5, 9.5, -side * 5.5), new THREE.Vector3(x, 1, side * 4.5));
+}
+
+/* picking */
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+let down = null;
+canvas.addEventListener('pointerdown', e => { down = {x: e.clientX, y: e.clientY}; canvas.style.cursor = 'grabbing'; });
+canvas.addEventListener('pointerup', e => {
+  canvas.style.cursor = 'grab';
+  if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return;
+  const r = canvas.getBoundingClientRect();
+  mouse.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const sMeshes = spools.filter(s => s.mesh).map(s => s.mesh);
+  const hs = ray.intersectObjects(sMeshes, true);
+  if (hs.length){ select({spool: hs[0].object.userData.spool}); return; }
+  const h = ray.intersectObjects(pickables, true);
+  if (h.length && h[0].object.userData.station !== undefined){ select({station: h[0].object.userData.station}); flyStation(h[0].object.userData.station); }
+});
+
+/* ---------- UI: selection & panels ---------- */
+let selection = {};
+const hovering = new Set();
+for (const id of ['#side', '#p-spool']){ const el = $(id); el.addEventListener('pointerenter', () => hovering.add(id)); el.addEventListener('pointerleave', () => hovering.delete(id)); }
+function select(sel){
+  for (const s of spools) if (s.mesh) s.mesh.userData.sel.visible = false;
+  selection = sel || {};
+  if (selection.spool && selection.spool.mesh) selection.spool.mesh.userData.sel.visible = true;
+  renderRail(); renderSide();
+}
+
+function stationState(i){
+  const q = stRun[i].queue.length;
+  return q >= 8 ? 'bad' : q >= 4 ? 'warn' : 'ok';
+}
+const STATE_TXT = {ok: 'ปกติ', warn: 'งานรอคิว', bad: 'คอขวด'};
+const fmtH = h => `${h.toFixed(1)} ชม.`;
+function clockTxt(t){ const tot = 8*60 + t*60; const d = Math.floor(tot / (24*60)); const m = Math.floor(tot % (24*60)); return [d+1, `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`]; }
+function where(s){
+  if (s.shippedAt) return 'ส่งมอบแล้ว (Dispatched)';
+  const i = s.phase === 'move' ? s.target : s.route[s.step];
+  if (s.phase === 'move') return s.toDock ? 'กำลังไปท่าส่งสินค้า' : `กำลังเคลื่อนย้าย → ${ST[i].no}`;
+  return `${ST[i].no} ${ST[i].short} · ${s.phase === 'work' ? 'กำลังทำ' : 'รอคิว'}`;
+}
+function progressOf(s){ if (s.shippedAt) return 1; return Math.min(1, s.step / s.route.length); }
+
+function renderSide(){
+  const side = $('#side');
+  if (selection.spool) return side.innerHTML = spoolPanel(selection.spool);
+  if (selection.station !== undefined) return side.innerHTML = stationPanel(selection.station);
+  side.innerHTML = overviewPanel();
+}
+function overviewPanel(){
+  const active = spools.filter(s => !s.shippedAt);
+  const avg = sim.cycles.length ? sim.cycles.reduce((a,b)=>a+b,0)/sim.cycles.length : 0;
+  const worst = ST.map((st,i) => ({i, q: stRun[i].queue.length, u: stRun[i].util})).sort((a,b) => b.q - a.q || b.u - a.u);
+  const b = worst[0];
+  const openNcr = active.filter(s => s.ncrOpen).length;
+  return `
+    <div><div class="eyebrow">WORKSHOP · LAM LUK KA</div><h2>ภาพรวมการผลิต</h2></div>
+    <div class="kpis">
+      <div class="kpi"><span class="v">${active.length}</span><span class="k">Spool ระหว่างผลิต (WIP)</span></div>
+      <div class="kpi"><span class="v">${sim.shipped}</span><span class="k">ส่งมอบแล้ว</span></div>
+      <div class="kpi"><span class="v">${avg.toFixed(1)}</span><span class="k">Lead time เฉลี่ย (ชม.)</span></div>
+      <div class="kpi"><span class="v" style="color:var(--bad)">${sim.ncr}</span><span class="k">NCR สะสม · เปิด ${openNcr}</span></div>
+    </div>
+    <div class="rows">
+      <div class="label">คอขวดตอนนี้</div>
+      <button class="list-btn btn" data-st="${b.i}" type="button" style="text-align:left">
+        <span class="pill ${stationState(b.i)}">${STATE_TXT[stationState(b.i)]}</span>
+        <b>${ST[b.i].no} ${ST[b.i].short}</b> · รอคิว ${b.q} · ใช้งาน ${(b.u*100).toFixed(0)}%</button>
+    </div>
+    <div class="rows">
+      <div class="label">อัตราการใช้งานสถานี</div>
+      ${ST.map((st,i) => `<div class="row" style="align-items:center"><span>${st.no} ${esc(st.short)}</span><span style="flex:0 0 120px"><span class="bar"><i style="width:${(stRun[i].util*100).toFixed(0)}%;background:var(--${stationState(i) === 'ok' ? 'accent' : stationState(i)})"></i></span></span></div>`).join('')}
+    </div>
+    <div class="rows">
+      <div class="label">งานตามโครงการ</div>
+      ${JOBS.map(j => { const n = active.filter(s => s.job === j).length; return `<div class="row"><span><i style="display:inline-block;width:10px;height:10px;background:${j.color};border-radius:2px;margin-right:6px"></i>${esc(j.code)}</span><span class="mono">${n} WIP</span></div>`; }).join('')}
+    </div>
+    <p class="note" style="margin:0">ตัวเลขทั้งหมดในหน้านี้มาจากการจำลอง ใช้แสดงแนวคิด ERP 3D ยังไม่ได้เชื่อมกับข้อมูลจริงของโรงงาน</p>`;
+}
+function stationPanel(i){
+  const st = ST[i], r = stRun[i], state = stationState(i);
+  const items = [...r.work.map(s => ({s, w:true})), ...r.queue.map(s => ({s, w:false}))];
+  return `
+    <button class="back" data-back type="button">← ภาพรวม</button>
+    <div><div class="eyebrow">กระบวนการ ${st.no} · ${st.wi}</div><h2>${esc(st.th)}</h2><div class="label" style="text-transform:none;letter-spacing:0">${esc(st.en)}</div></div>
+    <div><span class="pill ${state}">${STATE_TXT[state]}</span></div>
+    <div class="kpis">
+      <div class="kpi"><span class="v">${r.work.length}/${st.cap}</span><span class="k">กำลังทำ / ช่องงาน</span></div>
+      <div class="kpi"><span class="v">${r.queue.length}</span><span class="k">รอคิว</span></div>
+      <div class="kpi"><span class="v">${(r.util*100).toFixed(0)}%</span><span class="k">อัตราการใช้งาน</span></div>
+      <div class="kpi"><span class="v">${r.done}</span><span class="k">ผ่านสถานีแล้ว</span></div>
+    </div>
+    <div class="rows">
+      <div class="row"><span>ผู้รับผิดชอบ</span><span>${esc(st.pic)}</span></div>
+      <div class="row"><span>จุดควบคุม</span><span>${esc(st.ctrl)}</span></div>
+      <div class="row"><span>เวลามาตรฐาน</span><span class="mono">${st.t} ชม. / spool (4 joints)</span></div>
+      <div class="row"><span>Procedure</span><span class="mono">${st.wi}</span></div>
+      <div class="row"><span>ITP</span><span class="mono">${st.qc}</span></div>
+    </div>
+    <div class="rows"><div class="label">แบบฟอร์มบันทึกคุณภาพ (QR)</div>
+      <div class="chips">${st.qr.map(q => `<span class="chip">WI-QR-PIPE-${q}</span>`).join('')}</div></div>
+    <div class="rows"><div class="label">Spool ที่สถานีนี้ (${items.length})</div>
+      <div class="list">${items.slice(0,14).map(({s,w}) => `<button type="button" data-sp="${s.id}"><span class="mono">${s.id}</span><span>${s.size} ${s.mat} · ${w ? '<span class="pill info">กำลังทำ</span>' : '<span class="pill warn">รอคิว</span>'}</span></button>`).join('') || '<span class="note">ว่าง</span>'}</div></div>`;
+}
+function spoolPanel(s){
+  const curIdx = s.shippedAt ? 99 : s.step;
+  const allSteps = [0,1,2,3,4,5,6,7,8,9];
+  return `
+    <button class="back" data-back type="button">← ภาพรวม</button>
+    <div><div class="eyebrow">SPOOL TRAVELLER</div><h2 class="mono">${s.id}</h2><div class="label" style="text-transform:none;letter-spacing:0">${esc(s.job.code)} · ${esc(s.job.name)}</div></div>
+    <div>${s.shippedAt ? '<span class="pill ok">ส่งมอบแล้ว</span>' : `<span class="pill info">${esc(where(s))}</span>`} ${s.ncr ? `<span class="pill bad">NCR ×${s.ncr}</span>` : ''}</div>
+    <div class="rows">
+      <div class="row"><span>ขนาด / วัสดุ</span><span class="mono">${s.size} Sch10S · ${s.mat}</span></div>
+      <div class="row"><span>Heat No.</span><span class="mono">${s.heat}</span></div>
+      <div class="row"><span>ประเภทรอยต่อ</span><span>${s.groove ? 'Grooved coupling' : 'Butt weld GTAW'} · ${s.joints} joints</span></div>
+      <div class="row"><span>ลูกค้า / ไซต์</span><span>${esc(s.job.client)}</span></div>
+      <div class="row"><span>อายุงานในโรงงาน</span><span class="mono">${fmtH((s.shippedAt ?? sim.t) - s.born)}</span></div>
+      ${s.lastNcr ? `<div class="row"><span>NCR ล่าสุด</span><span>ตกที่ ${s.lastNcr.at} → ส่งกลับไปแก้ที่ ${s.groove ? '05' : '04'}</span></div>` : ''}
+    </div>
+    <div><div class="label" style="margin-bottom:4px">ความคืบหน้า</div><div class="bar"><i style="width:${(progressOf(s)*100).toFixed(0)}%"></i></div></div>
+    <div class="route">${allSteps.map(i => {
+        const ri = s.route.indexOf(i);
+        if (ri < 0) return `<div class="st skip"><span class="dot"></span><span>${ST[i].no} ${esc(ST[i].short)}</span><span class="label">ไม่ใช้</span></div>`;
+        const cls = ri < curIdx ? 'done' : ri === curIdx ? 'now' : '';
+        const lg = s.log[i];
+        const tm = lg && lg.end !== undefined ? clockTxt(Math.max(0,lg.end)) : null;
+        return `<div class="st ${cls}"><span class="dot"></span><span>${ST[i].no} ${esc(ST[i].short)}</span><span class="mono label" style="letter-spacing:0">${cls === 'done' && tm ? `D${tm[0]} ${tm[1]}` : cls === 'now' ? 'NOW' : ''}</span></div>`;
+      }).join('')}</div>`;
+}
+$('#side').addEventListener('click', e => {
+  const b = e.target.closest('[data-back],[data-st],[data-sp]'); if (!b) return;
+  if (b.hasAttribute('data-back')) { select({}); flyTo(HOME.pos.clone(), HOME.tgt.clone()); }
+  else if (b.dataset.st) { select({station: +b.dataset.st}); flyStation(+b.dataset.st); }
+  else { const s = spools.find(o => o.id === b.dataset.sp); if (s) select({spool: s}); }
+});
+
+function renderRail(){
+  const rail = $('#rail');
+  if (!rail.children.length){
+    rail.innerHTML = ST.map((st,i) => `<button class="stc" type="button" data-i="${i}" aria-pressed="false"><span class="n">${st.no} · ${st.wi}</span><span class="t" title="${esc(st.th)}">${esc(st.short)}</span><span class="q"><span>ทำ <b data-w>0</b>/${st.cap}</span><span>คิว <b data-q>0</b></span></span><span class="bar"><i data-u style="width:0%"></i></span></button>`).join('');
+    rail.addEventListener('click', e => { const b = e.target.closest('.stc'); if (!b) return; const i = +b.dataset.i; select({station: i}); flyStation(i); });
+  }
+  [...rail.children].forEach((b, i) => {
+    const s = stationState(i);
+    b.classList.toggle('warn', s === 'warn'); b.classList.toggle('bad', s === 'bad');
+    b.setAttribute('aria-pressed', selection.station === i ? 'true' : 'false');
+    b.querySelector('[data-w]').textContent = stRun[i].work.length;
+    b.querySelector('[data-q]').textContent = stRun[i].queue.length;
+    b.querySelector('[data-u]').style.width = (stRun[i].util*100).toFixed(0) + '%';
+  });
+}
+$('#legend').innerHTML = JOBS.map(j => `<span><i style="background:${j.color}"></i>${esc(j.code)}</span>`).join('') +
+  `<span><i style="background:#ff4d4d;border-radius:50%"></i>Spool ติด NCR</span><span><i style="background:var(--ok)"></i>สถานีปกติ</span><span><i style="background:var(--warn)"></i>รอคิว ≥ 4</span><span><i style="background:var(--bad)"></i>คอขวด ≥ 8</span>`;
+
+/* ---------- Master Plan (FM-PIPE-00-1, example rows) ---------- */
+const PLAN = [
+  ['1','Phase','ENGINEERING & DOCUMENT CONTROL','S01','02-Nov-26','30-Nov-26',92,'LATE'],
+  ['1.1','Task','Kick-off meeting & contract / PO review','S01','02-Nov-26','04-Nov-26',100,'Done'],
+  ['1.2','Task','IFC drawings → isometric & spool drawings','S01','04-Nov-26','20-Nov-26',100,'Done'],
+  ['1.3','Task','MTO / BOM and cutting list','S01','16-Nov-26','27-Nov-26',80,'LATE'],
+  ['1.4','Task','WPS/PQR, ITP & QCP submission','S04','09-Nov-26','27-Nov-26',90,'LATE'],
+  ['1.5','Milestone','Fabrication package approved (Hold Point)','S01','30-Nov-26','30-Nov-26',0,'LATE'],
+  ['2','Phase','PROCUREMENT & MATERIAL','S02','23-Nov-26','08-Jan-27',27,'On Track'],
+  ['2.1','Task','Material requisition, RFQ & PO issue','S02','23-Nov-26','04-Dec-26',100,'Done'],
+  ['2.2','Task','Material delivery — pipe, fittings, consumables','S02','07-Dec-26','31-Dec-26',20,'Behind'],
+  ['2.3','Task','Incoming inspection & MTC verification','S04','14-Dec-26','08-Jan-27',0,'On Track'],
+  ['2.4','Milestone','All material received & released','S02','08-Jan-27','08-Jan-27',0,'On Track'],
+  ['3','Phase','FABRICATION','S03','23-Nov-26','19-Feb-27',8,'On Track'],
+  ['3.1','Task','Workshop, tools & manpower readiness','S03','23-Nov-26','11-Dec-26',60,'LATE'],
+  ['3.2','Task','Cutting & end preparation','S03','21-Dec-26','29-Jan-27',0,'On Track'],
+  ['3.3','Task','Fit-up & welding (GTAW)','S03','28-Dec-26','19-Feb-27',0,'On Track'],
+  ['3.4','Task','Grooving / mechanical joint preparation','S03','11-Jan-27','12-Feb-27',0,'On Track'],
+  ['4','Phase','QC & TESTING','S04','04-Jan-27','12-Mar-27',0,'On Track'],
+  ['4.1','Task','VT/PT 100% & dimensional inspection','S04','04-Jan-27','26-Feb-27',0,'On Track'],
+  ['4.2','Task','Hydrostatic / pneumatic pressure test (Witness)','S04','25-Jan-27','05-Mar-27',0,'On Track'],
+  ['4.3','Task','Flushing, cleaning & passivation','S04','01-Feb-27','12-Mar-27',0,'On Track'],
+  ['4.4','Milestone','Final inspection released (Hold Point)','S04','12-Mar-27','12-Mar-27',0,'On Track'],
+  ['5','Phase','PACKING & DELIVERY','S05','15-Feb-27','19-Mar-27',0,'On Track'],
+  ['5.1','Task','Packing, crating & tagging','S05','15-Feb-27','16-Mar-27',0,'On Track'],
+  ['5.2','Task','Delivery to site (by lot)','S05','22-Feb-27','19-Mar-27',0,'On Track'],
+  ['5.3','Milestone','Last delivery completed','S05','19-Mar-27','19-Mar-27',0,'On Track'],
+  ['6','Phase','INSTALLATION & HANDOVER','S06','15-Feb-27','02-Apr-27',0,'On Track'],
+  ['6.1','Task','Site mobilization, permits & safety induction','S06','15-Feb-27','19-Feb-27',0,'On Track'],
+  ['6.2','Task','Installation / installation support','S06','22-Feb-27','26-Mar-27',0,'On Track'],
+  ['6.3','Task','Site test & punch list closure','S06','22-Mar-27','02-Apr-27',0,'On Track'],
+  ['6.4','Task','QC dossier & as-built drawing submission','S01','15-Mar-27','02-Apr-27',0,'On Track'],
+  ['6.5','Milestone','Handover & project completion','S06','02-Apr-27','02-Apr-27',0,'On Track'],
+];
+const MON = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+const pd = s => { const [d,m,y] = s.split('-'); return Date.UTC(2000 + +y, MON[m], +d); };
+const G0 = pd('02-Nov-26'), G1 = pd('26-Apr-27') + 7*864e5, SD = pd('14-Dec-26');
+const gx = t => ((t - G0) / (G1 - G0) * 100).toFixed(2);
+const FLAG = {'Done':'ok','On Track':'info','Behind':'warn','LATE':'bad'};
+function renderPlan(){
+  const months = []; for (let m = 0; m < 6; m++){ const t = Date.UTC(2026, 10 + m, 1); months.push(`<span style="position:absolute;left:${gx(Math.max(t,G0))}%;font-size:10px;color:var(--muted)">${new Date(t).toLocaleString('en',{month:'short', timeZone:'UTC'})}</span>`); }
+  $('#p-plan').innerHTML = `
+    <div class="planhead">
+      <span>โครงการ <b>PJ-2026-001</b> Chilled Water Piping — Data Center Phase 1</span>
+      <span>Status date <b>14-Dec-26</b></span><span>Plan <b>17.5%</b> · Actual <b>14.5%</b> · <span class="pill bad">LATE</span></span>
+    </div>
+    <div class="scroll"><table style="min-width:900px">
+      <thead><tr><th>WBS</th><th>กิจกรรม</th><th>Section</th><th>เริ่ม</th><th>เสร็จ</th><th style="text-align:right">% เสร็จ</th><th>สถานะ</th><th style="width:38%"><div class="gantt" style="height:12px">${months.join('')}</div></th></tr></thead>
+      <tbody>${PLAN.map(([w,ty,n,sec,ps,pf,pc,fl]) => {
+        const a = pd(ps), b = pd(pf) + 864e5;
+        const bar = ty === 'Milestone' ? `<span class="ms" style="left:${gx(a)}%"></span>` :
+          `<span class="pl" style="left:${gx(a)}%;width:${(gx(b)-gx(a)).toFixed(2)}%"></span><span class="ac" style="left:${gx(a)}%;width:${((gx(b)-gx(a))*pc/100).toFixed(2)}%;${ty==='Phase'?'opacity:.6':''}"></span>`;
+        return `<tr class="${ty === 'Phase' ? 'phase' : ''}"><td class="mono">${w}</td><td>${esc(n)}</td><td class="mono">${sec}</td><td class="num">${ps}</td><td class="num">${pf}</td><td class="num">${pc}%</td><td><span class="pill ${FLAG[fl]}">${fl}</span></td><td><div class="gantt">${bar}<span class="sd" style="left:${gx(SD)}%"></span></div></td></tr>`;
+      }).join('')}</tbody></table></div>
+    <p class="note">ข้อมูลตัวอย่างจากแบบฟอร์ม FM-PIPE-00-1 Master Project Plan (Rev.00) · แถบจาง = แผน, แถบเข้ม = ผลงานจริง, ◆ = Milestone / Hold Point, เส้นแดง = Status Date</p>`;
+}
+
+function renderSpools(){
+  const list = [...spools].sort((a,b) => (!!a.shippedAt - !!b.shippedAt) || a.id.localeCompare(b.id));
+  $('#p-spool').innerHTML = `<div class="scroll"><table style="min-width:820px">
+    <thead><tr><th>Spool No.</th><th>โครงการ</th><th>ขนาด / วัสดุ</th><th>Heat No.</th><th>รอยต่อ</th><th>ตำแหน่งปัจจุบัน</th><th>NCR</th><th style="width:140px">ความคืบหน้า</th></tr></thead>
+    <tbody>${list.map(s => `<tr class="clk" data-sp="${s.id}"><td class="mono">${s.id}</td><td><i style="display:inline-block;width:8px;height:8px;background:${s.job.color};border-radius:2px;margin-right:6px"></i>${esc(s.job.code)}</td><td class="mono">${s.size} ${s.mat}</td><td class="mono">${s.heat}</td><td>${s.groove ? 'Groove' : 'Weld'} ×${s.joints}</td><td>${esc(where(s))}</td><td class="num">${s.ncr ? `<span class="pill bad">${s.ncr}</span>` : '—'}</td><td><div class="bar"><i style="width:${(progressOf(s)*100).toFixed(0)}%"></i></div></td></tr>`).join('')}</tbody></table></div>
+    <p class="note">คลิกแถวเพื่อเปิด Spool Traveller และไฮไลต์ในภาพ 3 มิติ · ข้อมูลจำลอง</p>`;
+}
+$('#p-spool').addEventListener('click', e => { const tr = e.target.closest('[data-sp]'); if (!tr) return; const s = spools.find(o => o.id === tr.dataset.sp); if (s){ select({spool: s}); const p = s.mesh.position; flyTo(new THREE.Vector3(p.x + 4, 8, p.z + 10), p.clone()); stage.scrollIntoView({behavior:'smooth', block:'center'}); } });
+
+function renderDocs(){
+  $('#p-docs').innerHTML = `<div class="scroll"><table style="min-width:760px">
+    <thead><tr><th>No.</th><th>กระบวนการ</th><th>Procedure (QP)</th><th>ITP (QC)</th><th>Quality Records (QR)</th><th>จุดควบคุม</th></tr></thead>
+    <tbody>${ST.map((st,i) => `<tr class="clk" data-st="${i}"><td class="mono">${st.no}</td><td><b>${esc(st.th)}</b><br><span class="label" style="text-transform:none;letter-spacing:0">${esc(st.en)}</span></td><td class="mono">${st.wi}</td><td class="mono">${st.qc}</td><td><div class="chips">${st.qr.map(q => `<span class="chip">WI-QR-PIPE-${q}</span>`).join('')}</div></td><td>${esc(st.ctrl)}</td></tr>`).join('')}</tbody></table></div>
+    <p class="note">อ้างอิง QP-PIPE-01 Stainless Steel Pipe Assembly Control §5.2 · กระบวนการ 05 Groove เป็นทางเลือกแทนการเชื่อม ขึ้นกับแบบและสเปคของแต่ละโครงการ</p>`;
+}
+$('#p-docs').addEventListener('click', e => { const tr = e.target.closest('[data-st]'); if (!tr) return; const i = +tr.dataset.st; select({station: i}); flyStation(i); stage.scrollIntoView({behavior:'smooth', block:'center'}); });
+
+document.querySelectorAll('[role=tab]').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('[role=tab]').forEach(o => { const on = o === t; o.setAttribute('aria-selected', on); $('#' + o.getAttribute('aria-controls')).hidden = !on; });
+  if (t.id === 'tab-spool') renderSpools();
+}));
+
+/* controls */
+$('#playBtn').addEventListener('click', () => { sim.running = !sim.running; $('#playBtn').textContent = sim.running ? '❚❚ หยุดชั่วคราว' : '▶ เดินเครื่อง'; });
+$('#speedSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; sim.speed = +b.dataset.s; $('#speedSeg').querySelectorAll('button').forEach(o => o.setAttribute('aria-pressed', o === b)); });
+$('#addBtn').addEventListener('click', () => { const s = spawnAtReceiving(); select({spool: s}); });
+$('#viewBtn').addEventListener('click', () => { select({}); flyTo(HOME.pos.clone(), HOME.tgt.clone()); });
+
+/* ---------- main loop ---------- */
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let last = performance.now(), uiAcc = 0, tblAcc = 0, tAnim = 0;
+function frame(now){
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (sim.running){ const sdt = dt * sim.speed * 0.5; const n = Math.ceil(sdt / 0.05); for (let k=0;k<n;k++) tick(sdt/n); }
+  tAnim += dt;
+
+  for (const s of spools){
+    if (!s.mesh) { s.mesh = spoolMesh(s); s.mesh.position.copy(spoolTarget(s)); }
+    const tgt = spoolTarget(s);
+    if (s.phase === 'move') s.mesh.position.copy(tgt);
+    else s.mesh.position.lerp(tgt, 1 - Math.exp(-dt * 8));
+    s.mesh.userData.ring.visible = !!s.ncrOpen;
+  }
+  stations.forEach((o, i) => {
+    const st = stationState(i);
+    if (st !== o.state){ o.state = st; o.padMat.color.setHex(STATE_COL[st]); o.edge.material.color.setHex(STATE_COL[st]); }
+    o.padMat.opacity = selection.station === i ? 0.42 : 0.2;
+    const busy = stRun[i].work.length > 0 && sim.running;
+    const f = o.fx;
+    if (f.light){ const on = busy && !reduce; f.light.intensity = on ? 1.2 + Math.random()*1.6 : 0; f.spark.visible = on && Math.random() > 0.25; }
+    if (f.roll && busy && !reduce) f.roll.rotation.y += dt * 8;
+    if (f.blade && busy && !reduce) f.blade.position.y = 1.0 + Math.sin(tAnim*6)*0.15;
+    if (f.gantry && busy && !reduce) f.gantry.position.z = 0.2 + Math.sin(tAnim*1.4)*0.8;
+    if (f.needle){ f.needle.rotation.z = busy ? -0.4 - Math.sin(tAnim*0.8)*0.6 : 0.9; }
+    if (f.water && busy && !reduce) f.water.position.y = 1.6 + Math.sin(tAnim*3)*0.04;
+  });
+  if (flight){
+    flight.k = Math.min(1, flight.k + dt * 1.4);
+    const e = flight.k < .5 ? 2*flight.k*flight.k : 1 - Math.pow(-2*flight.k + 2, 2)/2;
+    camera.position.lerpVectors(flight.p0, flight.p1, e); controls.target.lerpVectors(flight.t0, flight.t1, e);
+    if (flight.k >= 1) flight = null;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+
+  uiAcc += dt; tblAcc += dt;
+  if (uiAcc > 0.4){
+    uiAcc = 0; renderRail();
+    const [d, hm] = clockTxt(sim.t); $('#clock').innerHTML = `วันที่ <b>${d}</b> · <b>${hm}</b>`;
+    if (!hovering.has('#side') && !$('#side').contains(document.activeElement)) renderSide();
+  }
+  if (tblAcc > 1.5){ tblAcc = 0; if (!$('#p-spool').hidden && !hovering.has('#p-spool')) renderSpools(); }
+  requestAnimationFrame(frame);
+}
+
+seed();
+applyTheme();
+resize();
+renderRail(); renderSide(); renderPlan(); renderSpools(); renderDocs();
+// redraw station labels once the Thai webfont is ready so canvas text uses it
+(document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(() => {
+  stations.forEach((o, i) => { const pos = o.label.position.clone(); scene.remove(o.label); o.label = makeLabel(ST[i].short, `${ST[i].no} · ${ST[i].wi}`); o.label.position.copy(pos); scene.add(o.label); });
+});
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
