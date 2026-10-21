@@ -131,6 +131,37 @@ tr.phase td{font-weight:600;background:var(--panel-2)}
 .note{font-size:12px;color:var(--muted);margin-top:10px}
 tr.clk{cursor:pointer} tr.clk:hover td{background:var(--panel-2)}
 
+
+/* parameter form */
+.stage .shift-tag{position:absolute;left:50%;top:10px;transform:translateX(-50%);font-size:13px;font-weight:600;background:color-mix(in srgb,var(--panel) 92%,transparent);border:1px solid var(--line);padding:5px 12px;border-radius:999px;max-width:calc(100% - 24px);text-align:center}
+.phead{display:flex;flex-wrap:wrap;gap:10px 16px;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.phead h3,.psub{font-size:17px}
+.psub{margin:18px 0 8px}
+.pbtns{display:flex;flex-wrap:wrap;gap:8px}
+.pmsg{font-size:13px;min-height:0}
+.pmsg:not(:empty){margin:6px 0 10px;padding:6px 10px;border-radius:6px;background:var(--panel-2);border:1px solid var(--line)}
+.pmsg.ok{color:var(--ok)} .pmsg.bad{color:var(--bad)} .pmsg.warn{color:var(--warn)}
+.ppaste{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.ppaste textarea{width:100%;font-family:var(--font-mono);font-size:12px;background:var(--panel-2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:8px}
+.ppaste .btn{align-self:flex-start}
+.forecast .kpis.fk{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-top:4px}
+.tips{margin-top:10px;font-size:13px;padding:8px 12px;border-radius:6px;background:var(--warn-bg);border:1px solid color-mix(in srgb,var(--warn) 35%,transparent)}
+.tips.ok{background:var(--ok-bg);border-color:color-mix(in srgb,var(--ok) 35%,transparent);color:var(--ok)}
+.tips ul{margin:4px 0 0;padding-left:18px}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:14px}
+.pgrid fieldset{border:1px solid var(--line);border-radius:8px;padding:8px 12px 10px;margin:0;min-width:0;background:var(--panel)}
+.pgrid legend{font-family:var(--font-display);font-weight:600;font-size:15px;padding:0 6px}
+.f{display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:10px;align-items:center;font-size:13px;padding:4px 0;border-bottom:1px dotted var(--line)}
+.f.chk{grid-template-columns:minmax(0,1fr) auto}
+.f input[type=number],.ptable input{width:100%;padding:5px 7px;border:1px solid var(--line);border-radius:5px;background:var(--panel-2);color:var(--ink);font-family:var(--font-mono);font-size:13px}
+.f input:focus,.ptable input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 25%,transparent)}
+.f input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
+.ptable input{width:78px}
+.ubar{display:inline-block;width:80px;height:8px;border-radius:4px;background:var(--panel-2);border:1px solid var(--line);overflow:hidden;vertical-align:middle;margin-right:6px}
+.ubar i{display:block;height:100%}
+.ubar i.ok{background:var(--ok)} .ubar i.warn{background:var(--warn)} .ubar i.bad{background:var(--bad)}
+.mono.ok{color:var(--ok)} .mono.warn{color:var(--warn)} .mono.bad{color:var(--bad)}
+
 @media (max-width: 1100px){
   .console{grid-template-columns:1fr}
   .side{max-height:none}
@@ -155,12 +186,14 @@ tr.clk{cursor:pointer} tr.clk:hover td{background:var(--panel-2)}
   <div class="controls">
     <button class="btn primary" id="playBtn" type="button">❚❚ หยุดชั่วคราว</button>
     <div class="seg" role="group" aria-label="ความเร็วจำลอง" id="speedSeg">
-      <button type="button" data-s="1" aria-pressed="false">1×</button>
-      <button type="button" data-s="2" aria-pressed="true">2×</button>
-      <button type="button" data-s="4" aria-pressed="false">4×</button>
-      <button type="button" data-s="8" aria-pressed="false">8×</button>
+      <button type="button" data-s="1" aria-pressed="false" title="1 วินาทีจริง = 1 นาทีในโรงงาน">×1</button>
+      <button type="button" data-s="10" aria-pressed="true" title="1 วินาทีจริง = 10 นาที">×10</button>
+      <button type="button" data-s="60" aria-pressed="false" title="1 วินาทีจริง = 1 ชั่วโมง">×60</button>
+      <button type="button" data-s="240" aria-pressed="false" title="1 วินาทีจริง = 4 ชั่วโมง">×240</button>
+      <button type="button" data-s="600" aria-pressed="false" title="1 วินาทีจริง = 10 ชั่วโมง">×600</button>
     </div>
     <button class="btn" id="addBtn" type="button">+ รับท่อดิบ 6 ม.</button>
+    <button class="btn" id="paramBtn" type="button">⚙ ตั้งค่า Parameter</button>
     <button class="btn" id="tourBtn" type="button">🚶 เดินชมโรงงาน</button>
     <button class="btn" id="viewBtn" type="button">มุมมองภาพรวม</button>
     <button class="btn" id="qualBtn" type="button">ภาพ: สมจริงสูง</button>
@@ -172,6 +205,7 @@ tr.clk{cursor:pointer} tr.clk:hover td{background:var(--panel-2)}
   <div class="stage" id="stage">
     <canvas id="scene" aria-label="ภาพ 3 มิติของโรงงานประกอบท่อ"></canvas>
     <span class="sim-tag">ข้อมูลจำลอง · Simulation</span>
+    <span class="shift-tag" id="shiftTag" hidden></span>
     <div class="legend" id="legend"></div>
     <span class="hint">ลากเพื่อหมุน · ล้อเมาส์ซูม · คลิกสถานี/Spool ดูรายละเอียด · ผนังด้านที่บังจะซ่อนอัตโนมัติ</span>
   </div>
@@ -185,10 +219,12 @@ tr.clk{cursor:pointer} tr.clk:hover td{background:var(--panel-2)}
     <button role="tab" id="tab-plan" aria-selected="true" aria-controls="p-plan" type="button">แผนงานหลัก (Master Plan)</button>
     <button role="tab" id="tab-spool" aria-selected="false" aria-controls="p-spool" type="button">ทะเบียน Spool (Traveller)</button>
     <button role="tab" id="tab-docs" aria-selected="false" aria-controls="p-docs" type="button">เอกสาร QMS ต่อกระบวนการ</button>
+    <button role="tab" id="tab-param" aria-selected="false" aria-controls="p-param" type="button">⚙ ตั้งค่า Parameter</button>
   </div>
   <div class="tabpanel" id="p-plan" role="tabpanel" aria-labelledby="tab-plan"></div>
   <div class="tabpanel" id="p-spool" role="tabpanel" aria-labelledby="tab-spool" hidden></div>
   <div class="tabpanel" id="p-docs" role="tabpanel" aria-labelledby="tab-docs" hidden></div>
+  <div class="tabpanel" id="p-param" role="tabpanel" aria-labelledby="tab-param" hidden></div>
 </section>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -232,6 +268,42 @@ const ST = [
   {no:'A2', th:'ประกอบ Assembly Spool', short:'A2 ประกอบ Assembly', en:'Assembly — flange bolt-up, coupling, valve', wi:'WI-PIPE-11 (เสนอ)', qc:'—', qr:['ASM-2 Assembly record'], cap:3, pitch:1.7, t:3.0, kind:'assy', row:'A', x:0, assy:true, equip:'Station ประกอบ Assembly × 3 (พร้อม Jib crane)', crew:[['op','Fitter'],['op','Fitter'],['op','Fitter']], ctrl:'ลำดับขันน็อต / ทิศทางวาล์ว ตามแบบ'},
   {no:'A3', th:'ตรวจ Torque และขนาด Assembly', short:'A3 ตรวจ Torque', en:'Torque & Assembly Dimension Check', wi:'WI-PIPE-11 (เสนอ)', qc:'—', qr:['ASM-3 Torque record'], cap:2, t:1.0, kind:'torque', row:'A', x:-8, assy:true, equip:'ชุด Hydraulic torque', crew:[['qc','QC Inspector']], ctrl:'ค่า Torque ตามสเปค · ส่งทดสอบแรงดันต่อ'},
 ];
+/* ---------- Parameters: edited on the "ตั้งค่า Parameter" tab, kept in this browser only ---------- */
+const PKEY = 'spk-pipe-erp-params-v1';
+const DEF = {
+  shift:    {start: 8, normal: 8, lunch: true, ot: 0, days: 6, skipNight: true},
+  incoming: {perDay: 2, pipes: 3, initialRaw: 4, initialWip: true},
+  mix:      {target: 0, pj1: 62, groove: 35, assy: 40, sizes: [20, 20, 20, 20, 20], pieces: 2, cutMin: 0.8, cutMax: 3.0, jointsMin: 2, jointsMax: 5},
+  time:     {variation: 30, handling: 6, walk: 20, ncr: [4, 5, 3, 4]},
+  stations: ST.map((st, i) => ({m: st.cap, w: [3,2,3,3,4,2,3,2,2,2,2,3,2][i], cpj: [1,2,1,1,1,1,1,0.5,1,1,1,1,1][i], t: st.t})),
+  people:   {handlers: 12, lift2: 1.0, lift3: 2.0, lift3Size: 4},
+  pack:     {perCrate: 3, perTruck: 10},
+  cost:     {rate: 60, otMult: 1.5, holMult: 2.0},
+  alert:    {warn: 4, bad: 8},
+};
+const MAXM = ST.map(st => st.kind === 'saw' ? 2 : st.kind === 'store' ? 4 : 6);
+function mergeP(def, v){
+  if (Array.isArray(def)) return def.map((d, k) => mergeP(d, v && v[k]));
+  if (def && typeof def === 'object'){ const o = {}; for (const k in def) o[k] = mergeP(def[k], v && v[k]); return o; }
+  if (v === undefined || v === null || v === '') return def;
+  if (typeof def === 'number') return isFinite(+v) ? +v : def;
+  if (typeof def === 'boolean') return !!v;
+  return v;
+}
+function loadParams(){ for (const get of [() => localStorage, () => sessionStorage]){ try { const raw = get().getItem(PKEY); if (raw) return JSON.parse(raw); } catch (e) {} } return null; }
+const STORED = loadParams();
+const P = mergeP(DEF, STORED);
+const BASE_PITCH = {weld: 1.2};
+ST.forEach((st, i) => {
+  const ps = P.stations[i];
+  ps.m = Math.max(1, Math.min(MAXM[i], Math.round(ps.m))); ps.w = Math.max(0, Math.round(ps.w));
+  ps.cpj = Math.max(0.25, ps.cpj); ps.t = Math.max(0.05, ps.t);
+  st.cap = ps.m; st.t = ps.t; st.workers = ps.w; st.cpj = ps.cpj;
+  st.pitch = Math.min(st.pitch || BASE_PITCH[st.kind] || 0.95, 5.6 / st.cap);
+});
+// jobs a station can run at once: limited by machines and by the people needed per job
+const effCapOf = (m, w, cpj) => Math.max(0, Math.min(m, Math.floor(w / cpj + 1e-9)));
+const effCap = i => effCapOf(ST[i].cap, ST[i].workers, ST[i].cpj);
 const ORDER = [0,1,2,3,4,5,6,7,10,11,12,8,9];
 // traveller lines: [station, occurrence] — pressure test (6) appears twice on assembly routes
 const DISPLAY = [[0,0],[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[7,0],[10,0],[11,0],[12,0],[6,1],[8,0],[9,0]];
@@ -251,27 +323,31 @@ const SIZES = ['2"','3"','4"','6"','8"'];
 const OD = {'2"':0.0603, '3"':0.0889, '4"':0.1143, '6"':0.1683, '8"':0.2191};   // pipe OD, m
 const FLG = {'2"':0.152, '3"':0.191, '4"':0.229, '6"':0.279, '8"':0.343};        // flange OD, m
 const SHAPES = ['straight','straight','elbow','tee'];
-const RAW_LEN = 6, MAX_CUT = 3;
+const RAW_LEN = 6, MAX_CUT = Math.min(RAW_LEN, P.mix.cutMax);
 
 /* lifting rule: > 1 m needs 2 people; 4" and larger over 2 m needs 3 people */
-const isBig = it => ['4"','6"','8"'].includes(it.size);
-function carriersFor(it){ if (it.len <= 1) return 1; if (isBig(it) && it.len > 2) return 3; return 2; }
-function liftRule(it){ const n = carriersFor(it); return n === 3 ? `3 คน (${it.size} ยาว ${it.len.toFixed(1)} ม. > 2 ม.)` : n === 2 ? `2 คน (ยาว ${it.len.toFixed(1)} ม. > 1 ม.)` : `1 คน (ยาว ${it.len.toFixed(1)} ม.)`; }
+const isBig = it => parseInt(it.size) >= P.people.lift3Size;
+function carriersFor(it){ if (it.len <= P.people.lift2) return 1; if (isBig(it) && it.len > P.people.lift3) return 3; return 2; }
+function liftRule(it){ const n = carriersFor(it); return n === 3 ? `3 คน (${it.size} ยาว ${it.len.toFixed(1)} ม. > ${P.people.lift3} ม.)` : n === 2 ? `2 คน (ยาว ${it.len.toFixed(1)} ม. > ${P.people.lift2} ม.)` : `1 คน (ยาว ${it.len.toFixed(1)} ม.)`; }
 
 /* ---------- Simulation state ---------- */
-const sim = { t: 0, speed: 2, running: true, spawnIn: 0, seq: 0, rawSeq: 0, shipped: 0, ncr: 0, cycles: [], remnant: 0, crateFill: 0, cratesReady: 0, cratesOnTruck: 0, cratesShipped: 0, trucks: 0 };
+const sim = { t: 0, speed: 10, running: true, seq: 0, rawSeq: 0, rawIssued: 0, seeded: 0, shipped: 0, ncr: 0, cycles: [], remnant: 0, crateFill: 0, cratesReady: 0, cratesOnTruck: 0, cratesShipped: 0, trucks: 0,
+  liftQ: [], nextDel: Infinity, deliveries: 0, hNormal: 0, hOT: 0, manH: 0, cost: 0, otCost: 0, doneAt: null };
 const spools = [];   // raw pipes and spools — everything that moves through the shop
 const stRun = ST.map(() => ({queue: [], work: [], done: 0, util: 0}));
 const rnd = mulberry(20261021);
 function mulberry(a){ return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const r1 = v => Math.round(v * 10) / 10;
 
+function pickJob(){ return JOBS[rnd() * 100 < P.mix.pj1 ? 0 : 1]; }
+function pickSize(){ const w = P.mix.sizes.map(v => Math.max(0, v)), tot = w.reduce((a, b) => a + b, 0) || 1; let x = rnd() * tot; for (let k = 0; k < w.length; k++){ if ((x -= w[k]) < 0) return SIZES[k]; } return SIZES[SIZES.length - 1]; }
 function routeFor(s){ return [0,1,2, ...(s.groove ? [3] : []), 4,5,6,7, ...(s.assy ? [10,11,12,6] : []), 8,9]; }
 function nth(route, st, occ){ let n = -1; for (let k = 0; k < route.length; k++) if (route[k] === st && ++n === occ) return k; return -1; }
 function newRaw(){
   sim.rawSeq++;
-  const job = JOBS[rnd() < 0.62 ? 0 : 1];
-  const s = {kind:'raw', id:`RAW-${String(500 + sim.rawSeq)}`, job, size: SIZES[Math.floor(rnd()*SIZES.length)], mat: MATERIAL,
+  sim.rawIssued++;
+  const job = pickJob();
+  const s = {kind:'raw', id:`RAW-${String(500 + sim.rawSeq)}`, job, size: pickSize(), mat: MATERIAL,
     heat: 'H' + Math.floor(20000 + rnd()*70000), len: RAW_LEN, route:[0,1], step:0, phase:'move', remain:0, dur:0, slot:-1,
     born: sim.t, log: {}, ncr: 0, escorts: []};
   spools.push(s);
@@ -279,11 +355,11 @@ function newRaw(){
 }
 function newSpool(base){
   sim.seq++;
-  const job = base && base.job || JOBS[rnd() < 0.62 ? 0 : 1];
+  const job = base && base.job || pickJob();
   const s = Object.assign({
-    kind:'spool', id:`${job.pre}-${String(1000 + sim.seq)}`, job, groove: rnd() < 0.35, assy: rnd() < 0.4,
-    shape: SHAPES[Math.floor(rnd()*SHAPES.length)], size: SIZES[Math.floor(rnd()*SIZES.length)], mat: MATERIAL,
-    heat: 'H' + Math.floor(20000 + rnd()*70000), len: r1(0.8 + rnd()*2.2), joints: 2 + Math.floor(rnd()*4),
+    kind:'spool', id:`${job.pre}-${String(1000 + sim.seq)}`, job, groove: rnd() * 100 < P.mix.groove, assy: rnd() * 100 < P.mix.assy,
+    shape: SHAPES[Math.floor(rnd()*SHAPES.length)], size: pickSize(), mat: MATERIAL,
+    heat: 'H' + Math.floor(20000 + rnd()*70000), len: r1(P.mix.cutMin + rnd() * Math.max(0, MAX_CUT - P.mix.cutMin)), joints: P.mix.jointsMin + Math.floor(rnd() * (P.mix.jointsMax - P.mix.jointsMin + 1)),
     step: 2, phase: 'move', remain: 0, dur: 0, slot: -1, path: null, prog: 0,
     born: sim.t, log: {}, ncr: 0, ncrOpen: false, shippedAt: null, mesh: null, escorts: []
   }, base || {});
@@ -294,12 +370,17 @@ function newSpool(base){
 }
 // one 6 m raw pipe is cut into two pieces of at most 3 m; both keep the raw pipe's Heat No.
 function cutRaw(raw){
-  const a = r1(1.0 + rnd() * (MAX_CUT - 1.0));
-  const b = r1(Math.min(MAX_CUT, 0.8 + rnd() * (RAW_LEN - a - 0.8 - 0.05)));
-  const rem = r1(RAW_LEN - a - b);
-  sim.remnant += Math.max(0, rem);
-  return [a, b].map((len, n) => newSpool({job: raw.job, size: raw.size, heat: raw.heat, len, born: raw.born,
-    parent: raw.id, piece: `${n+1}/2`, remnant: rem, log: {0: {...raw.log[0]}, 1: {...raw.log[1]}}}));
+  const n = Math.max(1, Math.round(P.mix.pieces)), lens = [];
+  let left = RAW_LEN - 0.01 * n;                                   // saw kerf
+  for (let k = 0; k < n; k++){
+    const maxL = Math.min(MAX_CUT, left - (n - k - 1) * P.mix.cutMin);
+    const L = Math.max(0.3, r1(Math.min(maxL, P.mix.cutMin + rnd() * Math.max(0, maxL - P.mix.cutMin))));
+    lens.push(L); left -= L;
+  }
+  const rem = r1(Math.max(0, RAW_LEN - lens.reduce((a, b) => a + b, 0)));
+  sim.remnant += rem;
+  return lens.map((len, k) => newSpool({job: raw.job, size: raw.size, heat: raw.heat, len, born: raw.born,
+    parent: raw.id, piece: `${k+1}/${n}`, remnant: rem, log: {0: {...raw.log[0]}, 1: {...raw.log[1]}}}));
 }
 
 /* ---------- Floor geometry & paths ---------- */
@@ -309,7 +390,7 @@ function fpZone(s){ return s.dur && (s.dur - s.remain) / s.dur >= ST[7].split ? 
 function workPos(i, k, s){
   const st = ST[i], fl = R(i).flow, f = R(i).face, zc = R(i).zc;
   if (i === 0) return new THREE.Vector3(st.x, 0.92, slotZ(i) + (k - (st.cap-1)/2) * 0.5);       // pipes on trestles, along x
-  if (i === 1) return new THREE.Vector3(st.x - fl * 0.6, 0.92, zc + f * 0.25);                  // on the saw conveyor, along x
+  if (i === 1) return new THREE.Vector3(st.x - fl * 0.6, 0.92, zc + f * (0.25 - k * 2.0));       // on a saw conveyor, along x
   if (st.kind === 'fp' && s){
     const zone = fpZone(s);
     const mates = stRun[i].work.filter(w => fpZone(w) === zone);
@@ -324,6 +405,14 @@ function queuePos(i, q){
   if (st.axisX) return new THREE.Vector3(st.x, 0.1 + Math.floor(q/4) * 0.24, zc + f * (1.0 + (q % 4) * 0.27));
   return new THREE.Vector3(st.x - R(i).flow * (2.8 + (q % 3) * 0.45), 0.1 + Math.floor(q/3) * 0.36, slotZ(i));
 }
+// finished work waits on the downstream pile until enough handlers are free to carry it
+function outPos(i, n){
+  const st = ST[i], f = R(i).face, zc = R(i).zc, fl = R(i).flow;
+  if (i === 0) return new THREE.Vector3(st.x, 0.1 + Math.floor(n/4) * 0.24, zc + f * (3.75 + (n % 4) * 0.27));
+  if (i === 1) return new THREE.Vector3(st.x + fl * 1.6, 0.1 + Math.floor(n/4) * 0.24, zc + f * (2.3 + (n % 4) * 0.27));
+  return new THREE.Vector3(st.x + fl * (2.8 + (n % 3) * 0.45), 0.1 + Math.floor(n/3) * 0.36, slotZ(i));
+}
+const truckPos = n => new THREE.Vector3(-26.6, 1.25 + Math.floor(n/6) * 0.24, -6.2 + ((n % 6) - 2.5) * 0.3);
 function lanePts(ax, ar, bx, br, y){
   const la = laneZr(ar), lb = laneZr(br), pts = [new THREE.Vector3(ax, y, la)];
   if (la !== lb){
@@ -337,7 +426,9 @@ function lanePts(ax, ar, bx, br, y){
 function mkPath(pts){ let len = 0; for (let k=1;k<pts.length;k++) len += pts[k].distanceTo(pts[k-1]); return {pts, len}; }
 function buildPath(from, fromRow, ti, it){
   const target = queuePos(ti, stRun[ti].queue.length + 1); target.y += rOf(it);
-  return mkPath([from.clone(), ...lanePts(from.x, fromRow, target.x, ST[ti].row, 1.0), target]);
+  const pre = fromRow === 'T' ? [from.clone(), new THREE.Vector3(-21.4, 1.0, -6.2)] : [from.clone()];   // off the truck, through the receiving door
+  const st0 = pre[pre.length - 1];
+  return mkPath([...pre, ...lanePts(st0.x, fromRow === 'T' ? 'N' : fromRow, target.x, ST[ti].row, 1.0), target]);
 }
 function pointOnPath(path, d){
   for (let k=1;k<path.pts.length;k++){
@@ -347,44 +438,106 @@ function pointOnPath(path, d){
   }
   return path.pts[path.pts.length-1].clone();
 }
-function startMove(s, fromPos, fromRow, ti){ s.phase = 'move'; s.target = ti; s.path = buildPath(fromPos, fromRow, ti, s); s.prog = 0; }
+function startMove(s, fromPos, fromRow, ti){
+  s.phase = 'move'; s.target = ti; s.path = buildPath(fromPos, fromRow, ti, s); s.prog = 0;
+  s.moveDur = P.time.handling / 60 + s.path.len / Math.max(1, P.time.walk * 60);   // hours: pick-up/set-down + walking
+}
+function requestMove(s, from, fromRow, ti){ s.phase = 'waitLift'; s.waitSt = from; s.fromRow = fromRow; s.target = ti; sim.liftQ.push(s); }
+function liftPos(s){
+  const n = Math.max(0, sim.liftQ.filter(o => o.waitSt === s.waitSt).indexOf(s));
+  const p = s.waitSt === 'T' ? truckPos(n) : outPos(s.waitSt, n); p.y += rOf(s); return p;
+}
+const busyHandlers = () => spools.reduce((a, o) => a + (o.phase === 'move' ? carriersFor(o) : 0), 0);
+function dispatchLifts(){
+  let free = P.people.handlers - busyHandlers();
+  for (let k = 0; k < sim.liftQ.length && free > 0; k++){
+    const s = sim.liftQ[k], need = carriersFor(s);
+    if (need > free) continue;
+    const from = liftPos(s); from.y = 1.0;
+    sim.liftQ.splice(k--, 1); free -= need;
+    startMove(s, from, s.fromRow, s.target);
+  }
+}
+
+/* ---------- Shift calendar: sim time 0 = Monday 08:00, day 1 ---------- */
+const DAYS = ['จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์','อาทิตย์'];
+const absH = t => 8 + t;
+function shiftAt(t){
+  const a = absH(t), day = Math.floor(a / 24 + 1e-9), h = a - day * 24, dow = day % 7;
+  const S = P.shift, workday = dow < S.days, holiday = workday && dow === 6;
+  const span = S.normal + (S.lunch ? 1 : 0), end = S.start + span;
+  let state = 'off';
+  if (workday){
+    if (h >= S.start && h < end) state = (S.lunch && h >= 12 && h < 13 && S.start <= 12 && end >= 13) ? 'lunch' : 'normal';
+    else if (h >= end && h < end + S.ot) state = 'ot';
+  }
+  return {state, day, dow, h, holiday};
+}
+const isWorking = st => st === 'normal' || st === 'ot';
+function nextWorkStart(t){
+  let tt = t;
+  for (let k = 0; k < 24 * 4 * 9; k++){ tt = Math.floor(tt * 4 + 1e-6) / 4 + 0.25; if (isWorking(shiftAt(tt).state)) return tt; }
+  return t + 24;
+}
+function nextDelivery(t){
+  const S = P.shift, n = Math.max(0, Math.round(P.incoming.perDay)); if (!n || !P.incoming.pipes) return Infinity;
+  const span = S.normal + (S.lunch ? 1 : 0), day0 = Math.floor(absH(t) / 24);
+  for (let d = day0; d < day0 + 15; d++){
+    if (d % 7 >= S.days) continue;
+    for (let k = 0; k < n; k++){ const at = d * 24 + S.start + k * span / n - 8; if (at > t + 1e-6) return at; }
+  }
+  return Infinity;
+}
+const piecesPerRaw = () => Math.max(1, Math.round(P.mix.pieces));
+function deliver(){
+  let n = Math.max(0, Math.round(P.incoming.pipes));
+  if (P.mix.target > 0) n = Math.min(n, Math.max(0, Math.ceil((P.mix.target - sim.seeded - sim.rawIssued * piecesPerRaw()) / piecesPerRaw())));
+  for (let k = 0; k < n; k++){ const s = newRaw(); s.step = 0; requestMove(s, 'T', 'T', 0); }
+  if (n) sim.deliveries++;
+}
+const paidHeads = () => ST.reduce((a, st) => a + st.workers, 0) + P.people.handlers + walkers.length + 1;
 
 /* ---------- Sim tick (sim hours) ---------- */
-const MOVE_SPEED = 6;
-const FAIL_P = {5: 0.04, 6: 0.05, 8: 0.03, 12: 0.04};
+const FAIL_P = {5: P.time.ncr[0] / 100, 6: P.time.ncr[1] / 100, 8: P.time.ncr[2] / 100, 12: P.time.ncr[3] / 100};
 function reworkPos(s, i){
   if (i === 6 && s.step > nth(s.route, 12, 0) && s.assy) return nth(s.route, 11, 0);   // assembly leak → back to assembly
   const back = {5: 4, 6: 4, 8: 7, 12: 11}[i];
   return nth(s.route, back, 0);
 }
+function arrive(s){ s.phase = 'queue'; s.log[s.step] = s.log[s.step] || {}; s.log[s.step].in = sim.t; stRun[s.target].queue.push(s); }
 function tick(dt){
+  const sh = shiftAt(sim.t), working = isWorking(sh.state);
+  if (sim.t >= sim.nextDel){ deliver(); sim.nextDel = nextDelivery(sim.t); }
+  // a carry already under way is finished even after the bell
+  for (const s of spools) if (s.phase === 'move'){ s.prog += s.path.len * dt / Math.max(1e-4, s.moveDur); if (s.prog >= s.path.len) arrive(s); }
   sim.t += dt;
-  sim.spawnIn -= dt;
-  const active = spools.filter(s => !s.shippedAt).length;
-  if (sim.spawnIn <= 0 && active < 54){ spawnAtReceiving(); sim.spawnIn = 2.4 + rnd()*1.2; }
-  ST.forEach((st, i) => {
-    const r = stRun[i];
-    for (const s of [...r.work]){
-      s.remain -= dt;
-      if (st.kind === 'fp' && s.log[s.step] && s.log[s.step].flushEnd === undefined && fpZone(s)) s.log[s.step].flushEnd = sim.t;
-      if (s.remain <= 0) finishAt(i, s);
-    }
-    while (r.work.length < st.cap && r.queue.length){
-      const s = r.queue.shift();
-      const used = new Set(r.work.map(w => w.slot));
-      let k = 0; while (used.has(k)) k++;
-      s.slot = k; s.phase = 'work';
-      const size = s.kind === 'raw' ? 1 : (s.joints/8 + 0.5) * (0.6 + s.len / 5);
-      s.dur = s.remain = st.t * (0.7 + rnd()*0.6) * size;
-      s.log[s.step] = s.log[s.step] || {}; s.log[s.step].start = sim.t; delete s.log[s.step].flushEnd;
-      r.work.push(s);
-    }
-    r.util += ((r.work.length / st.cap) - r.util) * (1 - Math.exp(-dt/6));
-  });
-  for (const s of spools){
-    if (s.phase !== 'move') continue;
-    s.prog += MOVE_SPEED * dt;
-    if (s.prog >= s.path.len){ s.phase = 'queue'; s.log[s.step] = s.log[s.step] || {}; s.log[s.step].in = sim.t; stRun[s.target].queue.push(s); }
+  if (working){
+    const heads = paidHeads(), mult = (sh.state === 'ot' ? P.cost.otMult : 1) * (sh.holiday ? P.cost.holMult : 1);
+    if (sh.state === 'ot') { sim.hOT += dt; sim.otCost += heads * dt * P.cost.rate * mult; } else sim.hNormal += dt;
+    sim.manH += heads * dt; sim.cost += heads * dt * P.cost.rate * mult;
+    dispatchLifts();
+    ST.forEach((st, i) => {
+      const r = stRun[i], cap = effCap(i);
+      for (const s of [...r.work]){
+        s.remain -= dt;
+        if (st.kind === 'fp' && s.log[s.step] && s.log[s.step].flushEnd === undefined && fpZone(s)) s.log[s.step].flushEnd = sim.t;
+        if (s.remain <= 0) finishAt(i, s);
+      }
+      while (r.work.length < cap && r.queue.length){
+        const s = r.queue.shift();
+        const used = new Set(r.work.map(w => w.slot));
+        let k = 0; while (used.has(k)) k++;
+        s.slot = k; s.phase = 'work';
+        const size = s.kind === 'raw' ? 1 : (s.joints/8 + 0.5) * (0.6 + s.len / 5), v = P.time.variation / 100;
+        s.dur = s.remain = st.t * (1 - v + rnd() * 2 * v) * size;
+        s.log[s.step] = s.log[s.step] || {}; s.log[s.step].start = sim.t; delete s.log[s.step].flushEnd;
+        r.work.push(s);
+      }
+      r.util += ((cap ? r.work.length / cap : 0) - r.util) * (1 - Math.exp(-dt/6));
+    });
+  } else if (sh.state === 'off' && P.shift.skipNight && !spools.some(s => s.phase === 'move')){
+    const nx = Math.min(nextWorkStart(sim.t), sim.nextDel);
+    if (nx > sim.t && nx < Infinity) sim.t = nx;
   }
   for (let k = spools.length-1; k >= 0; k--){
     const s = spools[k];
@@ -399,7 +552,7 @@ function finishAt(i, s){
   const from = workPos(i, s.slot, null); from.y = 1.0;
   if (s.kind === 'raw' && i === 1){             // band saw: 6 m raw pipe → two pieces ≤ 3 m
     s.gone = true;
-    for (const c of cutRaw(s)) startMove(c, from, ST[i].row, 2);
+    for (const c of cutRaw(s)) requestMove(c, 1, ST[i].row, 2);
     if (selection.spool === s) select({});
     return;
   }
@@ -408,41 +561,42 @@ function finishAt(i, s){
     const pos = reworkPos(s, i);
     s.lastNcr = {at: ST[i].no + (i === 6 && s.step > nth(s.route, 12, 0) ? ' (Assembly)' : ''), back: ST[s.route[pos]].no, t: sim.t};
     s.step = pos;
-    startMove(s, from, ST[i].row, s.route[pos]);
+    requestMove(s, i, ST[i].row, s.route[pos]);
     return;
   }
   if (i === 8) s.ncrOpen = false;
-  if (i === 9){                                 // packed: the spool goes into the open crate, 3 spools per crate
+  if (i === 9){                                 // packed: the spool goes into the open crate
     s.phase = 'crated'; s.shippedAt = sim.t; sim.shipped++; sim.cycles.push(sim.t - s.born); if (sim.cycles.length > 40) sim.cycles.shift();
     s.crateNo = sim.cratesShipped + sim.cratesReady + 1;
-    if (++sim.crateFill >= 3){ sim.crateFill = 0; sim.cratesReady++; }
+    if (++sim.crateFill >= P.pack.perCrate){ sim.crateFill = 0; sim.cratesReady++; }
+    if (P.mix.target > 0 && sim.shipped >= P.mix.target && !sim.doneAt) sim.doneAt = sim.t;
     dropMesh(s);
     return;
   }
   s.step++;
-  startMove(s, from, ST[i].row, s.route[s.step]);
+  requestMove(s, i, ST[i].row, s.route[s.step]);
 }
-function spawnAtReceiving(){ const s = newRaw(); s.step = 0; startMove(s, RECV.clone(), 'N', 0); return s; }
+function spawnAtReceiving(){ const s = newRaw(); s.step = 0; requestMove(s, 'T', 'T', 0); return s; }
 function seed(){
-  for (let k = 0; k < 3; k++){ const s = newRaw(); s.phase = 'queue'; s.log[0] = {in: -1}; stRun[0].queue.push(s); }
-  { const s = newRaw(); s.step = 1; s.log[0] = {in: -3, start: -2.6, end: -1.8}; s.phase = 'queue'; s.log[1] = {in: -1}; stRun[1].queue.push(s); }
-  const plan = [[2,3],[3,2],[4,6],[5,2],[6,4],[7,4],[10,2],[11,3],[12,1],[8,2],[9,2]];
-  for (const [i, n] of plan){
-    for (let k=0;k<n;k++){
-      const s = newSpool();
-      if (i === 3) s.groove = true;
-      if (ST[i].assy) s.assy = true;
-      s.route = routeFor(s);
-      s.step = s.route.indexOf(i);
-      s.born = -(4 + s.step * 3 + rnd()*3);
-      for (let p=0;p<s.step;p++) s.log[p] = {in: s.born + p*2.5, start: s.born + p*2.5 + .4, end: s.born + p*2.5 + 2};
-      s.phase = 'queue'; s.log[s.step] = {in: -1};
-      stRun[i].queue.push(s);
+  for (let k = 0; k < P.incoming.initialRaw; k++){ const s = newRaw(); s.phase = 'queue'; s.log[0] = {in: 0}; stRun[0].queue.push(s); }
+  if (P.incoming.initialWip){
+    const plan = [[2,3],[3,2],[4,6],[5,2],[6,4],[7,4],[10,2],[11,3],[12,1],[8,2],[9,2]];
+    for (const [i, n] of plan){
+      for (let k=0;k<n;k++){
+        const s = newSpool(); sim.seeded++;
+        if (i === 3) s.groove = true;
+        if (ST[i].assy) s.assy = true;
+        s.route = routeFor(s);
+        s.step = s.route.indexOf(i);
+        s.born = -(4 + s.step * 3 + rnd()*3);
+        for (let p=0;p<s.step;p++) s.log[p] = {in: s.born + p*2.5, start: s.born + p*2.5 + .4, end: s.born + p*2.5 + 2};
+        s.phase = 'queue'; s.log[s.step] = {in: -1};
+        stRun[i].queue.push(s);
+      }
     }
   }
-  sim.shipped = 18; sim.ncr = 2; sim.cratesShipped = 6; sim.cratesOnTruck = 6; sim.remnant = 4.2;
-  sim.cycles = [31,28,34,30,27,36,29,33];
-  for (let k=0;k<20;k++) tick(0.15);
+  sim.nextDel = nextDelivery(sim.t);
+  for (let k=0;k<4;k++) tick(0.05);
 }
 
 /* =====================================================================
@@ -668,18 +822,23 @@ function machine(i, g){
       for (const x of [-2.2, 2.2]){ box(0.08, 0.86, 1.4, M.yellow, x, 0.43, 2.9, g); box(0.5, 0.06, 1.5, M.yellow, x, 0.86, 2.9, g); }
       for (const x of [-2.6, 2.6]) box(0.12, 0.1, 1.0, M.wood, x, 0.05, 1.35, g);
       break; }
-    case 'saw': {     // one horizontal band saw on a 6.4 m in/out roller conveyor (conveyor runs along x at local z 0.25)
-      box(1.2, 0.8, 0.9, M.machineGrey, 0, 0.4, -0.5, g);
-      box(0.5, 0.5, 1.6, M.machineBlue, 0, 1.35, -0.1, g);
-      cyl(0.3, 0.3, M.machineBlue, 0, 1.35, -0.75, g, {rot:[0,0,Math.PI/2]}); cyl(0.3, 0.3, M.machineBlue, 0, 1.35, 0.6, g, {rot:[0,0,Math.PI/2]});
-      fx.blade = box(0.02, 0.06, 1.3, M.stainless, 0, 1.05, -0.05, g, {dyn:true});
-      box(0.35, 0.4, 0.25, M.yellow, 0.7, 1.1, -0.7, g);
-      for (const x of [-2.6, 2.6]) box(0.12, 0.1, 1.0, M.wood, x, 0.05, 1.35, g);   // dunnage for raw pipes waiting to be cut
-      for (const sx of [-1, 1]){
-        box(2.7, 0.06, 0.45, M.steel, sx*1.85, 0.82, 0.25, g);
-        for (let r=0;r<9;r++) cylZ(0.035, 0.42, M.stainlessDull, sx*1.85 - 1.2 + r*0.3, 0.88, 0.25, g);
-        for (const lx of [-1.2, 0, 1.2]) box(0.05, 0.82, 0.05, M.steel, sx*1.85 + lx, 0.41, 0.25, g);
+    case 'saw': {     // band saw(s), each on a 6.4 m in/out roller conveyor running along x
+      fx.blades = [];
+      for (let n = 0; n < cap; n++){
+        const dz = -n * 2.0;
+        box(1.2, 0.8, 0.9, M.machineGrey, 0, 0.4, -0.5 + dz, g);
+        box(0.5, 0.5, 1.6, M.machineBlue, 0, 1.35, -0.1 + dz, g);
+        cyl(0.3, 0.3, M.machineBlue, 0, 1.35, -0.75 + dz, g, {rot:[0,0,Math.PI/2]}); cyl(0.3, 0.3, M.machineBlue, 0, 1.35, 0.6 + dz, g, {rot:[0,0,Math.PI/2]});
+        fx.blades.push(box(0.02, 0.06, 1.3, M.stainless, 0, 1.05, -0.05 + dz, g, {dyn:true}));
+        box(0.35, 0.4, 0.25, M.yellow, 0.7, 1.1, -0.7 + dz, g);
+        for (const sx of [-1, 1]){
+          box(2.7, 0.06, 0.45, M.steel, sx*1.85, 0.82, 0.25 + dz, g);
+          for (let r=0;r<9;r++) cylZ(0.035, 0.42, M.stainlessDull, sx*1.85 - 1.2 + r*0.3, 0.88, 0.25 + dz, g);
+          for (const lx of [-1.2, 0, 1.2]) box(0.05, 0.82, 0.05, M.steel, sx*1.85 + lx, 0.41, 0.25 + dz, g);
+        }
       }
+      for (const x of [-2.6, 2.6]) box(0.12, 0.1, 1.0, M.wood, x, 0.05, 1.35, g);   // raw pipes waiting to be cut
+      for (const x of [0.6, 2.6]) box(0.12, 0.1, 1.0, M.wood, x, 0.05, 2.7, g);     // cut pieces waiting for handlers
       break; }
     case 'table': {
       box(4.0, 0.12, 1.2, M.steel, 0, 0.9, -0.9, g);
@@ -698,13 +857,14 @@ function machine(i, g){
       }
       box(0.8, 1.1, 0.5, M.machineGrey, 2.9, 0.55, -1.0, g);
       break; }
-    case 'weld': {
-      for (const x of [-2.45, -0.95, 0.95, 2.45]) box(0.05, 1.9, 2.0, M.curtain, x, 1.0, -0.5, g, {noCast:true});
-      for (const x of [-2.45, -0.95, 0.95, 2.45]) box(0.06, 1.95, 0.06, M.steel, x, 0.98, 0.5, g);
-      box(4.9, 1.9, 0.05, M.curtain, 0, 1.0, -1.5, g, {noCast:true});
-      for (const x of [-1.9, -0.5, 0.5, 1.9]){
-        box(0.35, 0.55, 0.6, M.machineBlue, x, 0.28, -1.1, g); box(0.25, 0.12, 0.02, M.black, x, 0.42, -0.79, g);
-        cyl(0.11, 1.35, M.green, x + 0.3, 0.68, -1.25, g); cyl(0.05, 0.12, M.machineGrey, x + 0.3, 1.41, -1.25, g);
+    case 'weld': {    // one screened TIG bay per welding station
+      const pw = ST[i].pitch;
+      for (let n = 0; n <= cap; n++){ const x = (n - cap/2) * pw; box(0.05, 1.9, 2.0, M.curtain, x, 1.0, -0.5, g, {noCast:true}); box(0.06, 1.95, 0.06, M.steel, x, 0.98, 0.5, g); }
+      box(cap * pw, 1.9, 0.05, M.curtain, 0, 1.0, -1.5, g, {noCast:true});
+      for (let n = 0; n < cap; n++){
+        const x = slotLocalX(i, n) - 0.12 * R(i).flow;
+        box(0.32, 0.55, 0.6, M.machineBlue, x, 0.28, -1.1, g); box(0.22, 0.12, 0.02, M.black, x, 0.42, -0.79, g);
+        cyl(0.1, 1.35, M.green, x + 0.28, 0.68, -1.25, g); cyl(0.05, 0.12, M.machineGrey, x + 0.28, 1.41, -1.25, g);
         cyl(0.03, 2.4, M.machineGrey, x, 1.2, -1.42, g);
         box(0.06, 0.06, 1.2, M.machineGrey, x, 2.35, -0.85, g, {rot:[0.35,0,0]});
         cyl(0.11, 0.18, M.yellow, x, 2.05, -0.3, g);
@@ -842,7 +1002,7 @@ ST.forEach((st, i) => {
       box(bw, 0.08, 0.1, M.yellow, st.x, 0.82, sz + dz);
       for (const dx of [-1, 1]) box(0.08, 0.82, 0.08, M.steel, st.x + dx*(bw/2 - 0.08), 0.41, sz + dz);
     }
-    for (const dz of [-0.6, 0.6]) box(1.6, 0.1, 0.12, M.wood, st.x - row.flow * 3.25, 0.05, sz + dz);
+    for (const dz of [-0.6, 0.6]) for (const sd of [-1, 1]) box(1.6, 0.1, 0.12, M.wood, st.x + sd * row.flow * 3.25, 0.05, sz + dz);   // queue pile (upstream) + outfeed pile (downstream)
   }
   const sign = postSign(st, row);
   g.traverse(o => { o.userData.station = i; });
@@ -860,7 +1020,6 @@ function truck(x, z, cab){
   return t;
 }
 const recvTruck = truck(-27.4, -6.2, M.machineBlue), dispTruck = truck(-27.4, 6.2, M.white);
-for (let b = 0; b < 3; b++) for (let p = 0; p < 7; p++) cylZ(0.045, RAW_LEN, M.stainlessDull, -0.6 + b*0.6 + (p%4)*0.1 - 0.15, 1.27 + Math.floor(p/4)*0.09, 0.8, recvTruck);
 const truckCrates = [];
 for (let n = 0; n < 10; n++){ const c = box(1.0, 0.65, 3.4, M.wood, -0.6 + (n % 2) * 1.2 - 0.0, 1.55 + Math.floor(n/4) * 0.68, 0.8 + ((Math.floor(n/2)) % 2 ? 1.7 : -1.7), dispTruck, {dyn:true}); c.visible = false; truckCrates.push(c); }
 const readyCrates = [];
@@ -945,17 +1104,20 @@ function posePerson(p, mode, ph){
   }
 }
 ST.forEach((st, i) => {
-  const row = R(i), n = st.crew.length;
-  st.crew.forEach(([role], k) => {
-    const p = makePerson(role);
-    let x = n === st.cap ? workPos(i, k).x : st.x + (k - (n-1)/2) * 1.2, z = slotZ(i) - row.face * 1.25, face = row.face > 0 ? 0 : Math.PI;
-    if (i === 0){ z = slotZ(i) + row.face * 0.95; face += Math.PI; }                      // receiving: stand on the aisle side of the trestles
-    if (i === 1){ x = st.x + (k ? 1.4 : -1.4); z = row.zc + row.face * 1.0; face += Math.PI; }   // saw: either side of the conveyor
-    if (st.kind === 'press' || st.kind === 'groove') z = slotZ(i) - row.face * 1.55;
-    if (st.kind === 'pack') z = slotZ(i) - row.face * 2.35;                          // behind the open crates
+  const row = R(i), n = st.workers, roles = st.crew;
+  const slotAligned = st.cpj <= 1 && !st.axisX && st.kind !== 'fp';
+  for (let k = 0; k < n; k++){
+    const p = makePerson(roles[k % roles.length][0]);
+    let x, z = slotZ(i) - row.face * 1.25, face = row.face > 0 ? 0 : Math.PI;
+    if (slotAligned && k < st.cap){ x = workPos(i, k).x; p.userData.slot = k; }
+    else { const extra = slotAligned ? k - st.cap : k, ne = slotAligned ? n - st.cap : n; x = st.x + (extra - (ne-1)/2) * Math.min(1.2, 5.6 / Math.max(1, ne)); if (slotAligned) z -= row.face * 0.75; }
+    if (i === 0){ x = st.x + (k % 2 ? 3.4 : -3.4); z = slotZ(i) + row.face * (Math.floor(k/2) * 0.7 - 0.35); face = k % 2 ? -Math.PI/2 : Math.PI/2; }
+    if (i === 1){ x = st.x + (k % 2 ? 1.6 : -1.6); z = row.zc + row.face * (0.95 - Math.floor(k/2) * 2.0); face = (row.face > 0 ? 0 : Math.PI) + Math.PI; }
+    if ((st.kind === 'press' || st.kind === 'groove') && p.userData.slot !== undefined) z = slotZ(i) - row.face * 1.55;
+    if (st.kind === 'pack') z = slotZ(i) - row.face * 2.35;
     p.position.set(x, 0, z); p.rotation.y = face;
     stations[i].crew.push(p);
-  });
+  }
 });
 const walkers = [
   {role: 'qc',  name: 'QC Inspector — In-process', stops: [2, 4, 5, 6]},
@@ -1039,9 +1201,11 @@ function spoolMesh(s){
   scene.add(outer);
   return outer;
 }
+const restYaw = s => (s.phase === 'waitLift' ? (s.waitSt === 'T' || ST[s.waitSt].axisX) : ST[s.route[s.step]].axisX) ? Math.PI/2 : 0;
 function dropMesh(s){ if (s.mesh){ scene.remove(s.mesh); s.mesh = null; } freeEscorts(s); }
 function spoolTarget(s){
   if (s.phase === 'move') return pointOnPath(s.path, s.prog);
+  if (s.phase === 'waitLift') return liftPos(s);
   const i = s.route[s.step];
   const p = s.phase === 'work' ? workPos(i, s.slot, s) : queuePos(i, stRun[i].queue.indexOf(s));
   p.y += rOf(s);
@@ -1063,7 +1227,7 @@ function emitSpark(p){
   sparkLife[k] = 0.4 + Math.random()*0.5;
 }
 const arcMat = new THREE.MeshBasicMaterial({color: 0xdcebff});
-const arcs = [0,1,2,3].map(() => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.04, 10, 8), arcMat); m.visible = false; scene.add(m); return m; });
+const arcs = [0,1,2,3,4,5].map(() => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.04, 10, 8), arcMat); m.visible = false; scene.add(m); return m; });
 
 /* ---------- post-processing ---------- */
 let composer = null, ssao = null, bloom = null, fxaa = null;
@@ -1150,7 +1314,7 @@ function select(sel){
   if (selection.spool && selection.spool.mesh) selection.spool.mesh.userData.sel.visible = true;
   renderRail(); renderSide();
 }
-function stationState(i){ const q = stRun[i].queue.length; return q >= 8 ? 'bad' : q >= 4 ? 'warn' : 'ok'; }
+function stationState(i){ const q = stRun[i].queue.length; if (!effCap(i)) return 'bad'; return q >= P.alert.bad ? 'bad' : q >= P.alert.warn ? 'warn' : 'ok'; }
 const STATE_TXT = {ok: 'ปกติ', warn: 'งานรอคิว', bad: 'คอขวด'};
 const fmtH = h => `${h.toFixed(1)} ชม.`;
 function clockTxt(t){ const tot = 8*60 + t*60; const d = Math.floor(tot / (24*60)); const m = Math.floor(tot % (24*60)); return [d+1, `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`]; }
@@ -1159,15 +1323,44 @@ function where(s){
   if (s.phase === 'crated') return `บรรจุลังไม้แล้ว (ลังที่ ${s.crateNo})`;
   const i = s.phase === 'move' ? s.target : s.route[s.step];
   if (s.phase === 'move') return `กำลังยกย้าย → ${ST[i].no} (${carriersFor(s)} คน)`;
+  if (s.phase === 'waitLift') return `รอคนยก ${carriersFor(s)} คน · ${s.waitSt === 'T' ? 'บนรถส่งของ' : 'ที่ ' + ST[s.waitSt].no} → ${ST[i].no}`;
   const sub = ST[i].kind === 'fp' && s.phase === 'work' ? ` (${ST[i].subs[fpZone(s)]})` : '';
   return `${stName(i, s)}${sub} · ${s.phase === 'work' ? 'กำลังทำ' : 'รอคิว'}`;
 }
 function progressOf(s){ return s.shippedAt ? 1 : Math.min(1, s.step / s.route.length); }
 const carryingNow = () => spools.reduce((a, s) => a + s.escorts.length, 0);
-function headcount(){ return ST.reduce((a, st) => a + st.crew.length, 0) + walkers.length + 1 + carryingNow(); }
+function headcount(){ return paidHeads(); }
 const SHAPE_TXT = {straight: 'ท่อตรง', elbow: 'ท่อข้องอ 90°', tee: 'ท่อสามทาง (Tee)'};
 const typeTxt = s => s.kind === 'raw' ? 'ท่อดิบ 6 ม.' : s.assy ? 'Assembly' : 'Single';
 
+const SHIFT_TXT = {normal: 'เวลาปกติ', ot: 'OT', lunch: 'พักกลางวัน', off: 'นอกเวลา'};
+const SHIFT_PILL = {normal: 'ok', ot: 'warn', lunch: 'info', off: 'bad'};
+const baht = v => '฿' + Math.round(v).toLocaleString('en-US');
+const workdaysDone = () => (sim.hNormal + sim.hOT) / Math.max(0.5, P.shift.normal + P.shift.ot);
+function dateAfterWorkdays(t, wd){
+  let d = Math.floor(absH(t) / 24), left = wd;
+  while (left > 0 && d < 9999){ d++; if (d % 7 < P.shift.days) left -= 1; }
+  return `${DAYS[d % 7]} วันที่ ${d + 1}`;
+}
+function shiftBlock(){
+  const sh = shiftAt(sim.t), wd = workdaysDone(), rate = wd > 0.2 ? sim.shipped / wd : 0;
+  let target = '';
+  if (P.mix.target > 0){
+    const left = Math.max(0, P.mix.target - sim.shipped);
+    target = `<div class="row"><span>ใบสั่ง ${P.mix.target} spool</span><span class="mono">${sim.shipped}/${P.mix.target} (${Math.min(100, sim.shipped / P.mix.target * 100).toFixed(0)}%)</span></div>
+      <div class="row"><span>คาดว่าเสร็จ</span><span>${sim.doneAt ? 'เสร็จแล้ว' : rate > 0 ? dateAfterWorkdays(sim.t, left / rate) + ' (ประมาณ)' : 'รอข้อมูลผลผลิต'}</span></div>`;
+  }
+  return `<div class="rows">
+      <div class="label">กะ · OT · ค่าแรง (สะสมตั้งแต่เริ่มจำลอง)</div>
+      <div class="row"><span>ตอนนี้</span><span><span class="pill ${SHIFT_PILL[sh.state]}">${SHIFT_TXT[sh.state]}</span> ${P.shift.normal} ชม. + OT ${P.shift.ot} ชม. · ${P.shift.days} วัน/สัปดาห์</span></div>
+      <div class="row"><span>ชั่วโมงทำงาน ปกติ / OT</span><span class="mono">${sim.hNormal.toFixed(1)} / ${sim.hOT.toFixed(1)} ชม.</span></div>
+      <div class="row"><span>ชั่วโมงคน (man-hour)</span><span class="mono">${Math.round(sim.manH).toLocaleString('en-US')}</span></div>
+      <div class="row"><span>ค่าแรงประมาณ (OT)</span><span class="mono">${baht(sim.cost)} (${baht(sim.otCost)})</span></div>
+      <div class="row"><span>ผลผลิตเฉลี่ย</span><span class="mono">${rate.toFixed(1)} spool / วันทำงาน</span></div>
+      <div class="row"><span>ท่อดิบรับเข้าแล้ว</span><span class="mono">${sim.rawIssued} เส้น · ${sim.deliveries} รอบรถ</span></div>
+      ${target}
+    </div>`;
+}
 function renderSide(){
   const side = $('#side');
   if (selection.spool) return side.innerHTML = spoolPanel(selection.spool);
@@ -1189,9 +1382,10 @@ function overviewPanel(){
       <div class="kpi"><span class="v">${sim.cratesShipped}</span><span class="k">ลังไม้ส่งขึ้นรถ · พร้อมยก ${sim.cratesReady}</span></div>
       <div class="kpi"><span class="v">${avg.toFixed(1)}</span><span class="k">Lead time เฉลี่ย (ชม.)</span></div>
       <div class="kpi"><span class="v" style="color:var(--bad)">${sim.ncr}</span><span class="k">NCR สะสม · เปิด ${active.filter(s => s.ncrOpen).length}</span></div>
-      <div class="kpi"><span class="v">${headcount()}</span><span class="k">คนในพื้นที่ตอนนี้</span></div>
-      <div class="kpi"><span class="v">${carryingNow()}</span><span class="k">คนกำลังยกท่อ · ${moving.length} ชิ้น</span></div>
+      <div class="kpi"><span class="v">${headcount()}</span><span class="k">พนักงานในกะ</span></div>
+      <div class="kpi"><span class="v">${carryingNow()}/${P.people.handlers}</span><span class="k">คนยกที่ใช้อยู่ · รอยก ${sim.liftQ.length} ชิ้น</span></div>
     </div>
+    ${shiftBlock()}
     <div class="rows">
       <div class="label">คอขวดตอนนี้</div>
       <button class="btn" data-st="${b.i}" type="button" style="text-align:left">
@@ -1200,10 +1394,9 @@ function overviewPanel(){
     </div>
     <div class="rows">
       <div class="label">กฎการยกท่อ (บังคับใช้ในการจำลอง)</div>
-      <div class="row"><span>ยาวไม่เกิน 1 ม.</span><span>1 คน</span></div>
-      <div class="row"><span>ยาวเกิน 1 ม.</span><span>2 คน</span></div>
-      <div class="row"><span>ขนาด 4" ขึ้นไป และยาวเกิน 2 ม.</span><span>3 คน</span></div>
-      <div class="row"><span>ท่อดิบ 6 ม. (2"–3" / 4"–8")</span><span>2 / 3 คน</span></div>
+      <div class="row"><span>ยาวไม่เกิน ${P.people.lift2} ม.</span><span>1 คน</span></div>
+      <div class="row"><span>ยาวเกิน ${P.people.lift2} ม.</span><span>2 คน</span></div>
+      <div class="row"><span>ขนาด ${P.people.lift3Size}" ขึ้นไป และยาวเกิน ${P.people.lift3} ม.</span><span>3 คน</span></div>
     </div>
     <div class="rows">
       <div class="label">อัตราการใช้งานสถานี</div>
@@ -1225,7 +1418,7 @@ function stationPanel(i){
     <div><div class="eyebrow">${st.assy ? 'ASSEMBLY SPOOL LINE · ' : 'กระบวนการ '}${st.no} · ${esc(st.wi)}</div><h2>${esc(st.th)}</h2><div class="label" style="text-transform:none;letter-spacing:0">${esc(st.en)}</div></div>
     <div><span class="pill ${state}">${STATE_TXT[state]}</span></div>
     <div class="kpis">
-      <div class="kpi"><span class="v">${r.work.length}/${st.cap}</span><span class="k">กำลังทำ / เครื่องหรือ Station</span></div>
+      <div class="kpi"><span class="v">${r.work.length}/${effCap(i)}</span><span class="k">กำลังทำ / ทำได้พร้อมกัน (เครื่อง ${st.cap} · คน ${st.workers})</span></div>
       <div class="kpi"><span class="v">${r.queue.length}</span><span class="k">รอคิว</span></div>
       <div class="kpi"><span class="v">${(r.util*100).toFixed(0)}%</span><span class="k">อัตราการใช้งาน</span></div>
       <div class="kpi"><span class="v">${r.done}</span><span class="k">ผ่านสถานีแล้ว</span></div>
@@ -1233,7 +1426,7 @@ function stationPanel(i){
     ${fp}${pack}
     <div class="rows">
       <div class="row"><span>เครื่องจักร / Station</span><span>${esc(st.equip)}</span></div>
-      <div class="row"><span>ทีมประจำสถานี</span><span>${st.crew.map(c => esc(c[1])).join(', ')}</span></div>
+      <div class="row"><span>ทีมประจำสถานี</span><span>${st.workers} คน (${st.cpj} คน/งาน) · ${[...new Set(st.crew.map(c => c[1]))].map(esc).join(', ')}</span></div>
       <div class="row"><span>จุดควบคุม</span><span>${esc(st.ctrl)}</span></div>
       <div class="row"><span>เวลามาตรฐาน</span><span class="mono">${st.t} ชม. / ${i <= 1 ? 'ท่อดิบ' : 'spool'}</span></div>
       <div class="row"><span>Procedure / ITP</span><span class="mono">${esc(st.wi)} · ${esc(st.qc)}</span></div>
@@ -1255,7 +1448,7 @@ function spoolPanel(s){
       <div class="row"><span>ขนาด / ความยาว</span><span class="mono">${s.size} (OD ${(OD[s.size]*1000).toFixed(1)} mm) · ${s.len.toFixed(1)} ม.</span></div>
       <div class="row"><span>Heat No.</span><span class="mono">${s.heat}</span></div>
       <div class="row"><span>การยกย้าย</span><span>${liftRule(s)}</span></div>
-      ${s.kind === 'raw' ? `<div class="row"><span>แผนตัด</span><span>ตัดเป็น 2 ชิ้น ยาวไม่เกิน ${MAX_CUT} ม. ที่เครื่อง Band saw</span></div>` : `
+      ${s.kind === 'raw' ? `<div class="row"><span>แผนตัด</span><span>ตัดเป็น ${piecesPerRaw()} ชิ้น ยาว ${P.mix.cutMin}–${MAX_CUT} ม. ที่เครื่อง Band saw</span></div>` : `
       <div class="row"><span>ตัดจากท่อดิบ</span><span class="mono">${esc(s.parent || '—')} ${s.piece ? '· ชิ้น ' + s.piece : ''}${s.remnant !== undefined ? ' · เศษ ' + s.remnant.toFixed(1) + ' ม.' : ''}</span></div>
       <div class="row"><span>รูปแบบ / รอยต่อ</span><span>${SHAPE_TXT[s.shape]} · ${s.groove ? 'Groove + เชื่อม GTAW' : 'เชื่อม GTAW'} · ${s.joints} joints</span></div>
       <div class="row"><span>ประเภทงาน</span><span>${s.assy ? 'Assembly spool (ประกอบวาล์ว/อุปกรณ์)' : 'Single spool'}</span></div>`}
@@ -1291,7 +1484,7 @@ $('#side').addEventListener('click', e => {
 function renderRail(){
   const rail = $('#rail');
   if (!rail.children.length){
-    rail.innerHTML = ORDER.map(i => { const st = ST[i]; return `<button class="stc${st.assy ? ' assy' : ''}" type="button" data-i="${i}" aria-pressed="false"><span class="n" title="${esc(st.wi)}">${st.no}${st.assy ? ' · Assembly' : ''} · ×${st.cap}</span><span class="t" title="${esc(st.th)}">${esc(st.short.replace(/^A\d /,''))}</span><span class="q"><span>ทำ <b data-w>0</b>/${st.cap}</span><span>คิว <b data-q>0</b></span></span><span class="bar"><i data-u style="width:0%"></i></span></button>`; }).join('');
+    rail.innerHTML = ORDER.map(i => { const st = ST[i]; return `<button class="stc${st.assy ? ' assy' : ''}" type="button" data-i="${i}" aria-pressed="false"><span class="n" title="${esc(st.wi)} · เครื่อง ${st.cap} · คน ${st.workers}">${st.no}${st.assy ? ' · Assembly' : ''} · ×${effCap(i)}</span><span class="t" title="${esc(st.th)}">${esc(st.short.replace(/^A\d /,''))}</span><span class="q"><span>ทำ <b data-w>0</b>/${st.cap}</span><span>คิว <b data-q>0</b></span></span><span class="bar"><i data-u style="width:0%"></i></span></button>`; }).join('');
     rail.addEventListener('click', e => { const b = e.target.closest('.stc'); if (!b) return; const i = +b.dataset.i; select({station: i}); flyStation(i); });
   }
   [...rail.children].forEach(b => {
@@ -1364,6 +1557,190 @@ function renderPlan(){
       }).join('')}</tbody></table></div>
     <p class="note">ข้อมูลตัวอย่างจากแบบฟอร์ม FM-PIPE-00-1 Master Project Plan (Rev.00) · แถบจาง = แผน, แถบเข้ม = ผลงานจริง, ◆ = Milestone / Hold Point, เส้นแดง = Status Date</p>`;
 }
+
+/* ---------- Parameter form ("ตั้งค่า Parameter" tab) ---------- */
+const FIELDS = [
+  ['กะการทำงานและ OT', [
+    ['shift.start', 'เวลาเริ่มงาน (ชั่วโมง เช่น 8 = 08:00)', 0, 20, 0.5],
+    ['shift.normal', 'ชั่วโมงทำงานปกติต่อวัน', 1, 12, 0.5],
+    ['shift.lunch', 'พักกลางวัน 12:00–13:00', 'bool'],
+    ['shift.ot', 'OT ต่อวัน (ชั่วโมง ต่อท้ายเวลาปกติ)', 0, 8, 0.5],
+    ['shift.days', 'วันทำงานต่อสัปดาห์ (เริ่มวันจันทร์)', 1, 7, 1],
+    ['shift.skipNight', 'ข้ามช่วงนอกเวลาทำงานอัตโนมัติ', 'bool'],
+  ]],
+  ['คนยกย้ายและค่าแรง', [
+    ['people.handlers', 'คนยกย้ายท่อ (ทีมกลาง, อย่างน้อย 3)', 3, 60, 1],
+    ['people.lift2', 'ยาวเกินกี่เมตร ต้องยก 2 คน', 0.2, 6, 0.1],
+    ['people.lift3', 'ยาวเกินกี่เมตร ต้องยก 3 คน (ท่อใหญ่)', 0.5, 6, 0.1],
+    ['people.lift3Size', 'ท่อใหญ่ตั้งแต่ขนาด (นิ้ว)', 2, 8, 1],
+    ['cost.rate', 'ค่าแรงเฉลี่ย (บาท/ชม./คน)', 0, 2000, 1],
+    ['cost.otMult', 'อัตราค่า OT (เท่า)', 1, 4, 0.25],
+    ['cost.holMult', 'อัตราทำงานวันอาทิตย์ (เท่า)', 1, 4, 0.25],
+  ]],
+  ['ของเข้า (ท่อดิบ 6 ม.)', [
+    ['incoming.perDay', 'รถส่งท่อดิบ (รอบ/วันทำงาน)', 0, 8, 1],
+    ['incoming.pipes', 'ท่อดิบต่อรอบ (เส้น)', 0, 60, 1],
+    ['incoming.initialRaw', 'สต็อกท่อดิบตั้งต้น (เส้น)', 0, 40, 1],
+    ['incoming.initialWip', 'เริ่มด้วยงานค้างในโรงงาน (ตัวอย่าง)', 'bool'],
+    ['mix.sizes.0', 'สัดส่วนขนาด 2" (%)', 0, 100, 1],
+    ['mix.sizes.1', 'สัดส่วนขนาด 3" (%)', 0, 100, 1],
+    ['mix.sizes.2', 'สัดส่วนขนาด 4" (%)', 0, 100, 1],
+    ['mix.sizes.3', 'สัดส่วนขนาด 6" (%)', 0, 100, 1],
+    ['mix.sizes.4', 'สัดส่วนขนาด 8" (%)', 0, 100, 1],
+  ]],
+  ['ปริมาณงาน', [
+    ['mix.target', 'จำนวน Spool ตามใบสั่ง (0 = ผลิตต่อเนื่อง)', 0, 100000, 1],
+    ['mix.pj1', 'สัดส่วนงาน PJ-2026-001 (%) ที่เหลือเป็น SPK.CS061.26', 0, 100, 1],
+    ['mix.groove', 'Spool ที่ต้องขึ้นร่อง Groove (%)', 0, 100, 1],
+    ['mix.assy', 'งาน Assembly (%)', 0, 100, 1],
+    ['mix.pieces', 'ตัดท่อดิบ 1 เส้นได้ (ชิ้น)', 1, 6, 1],
+    ['mix.cutMin', 'ความยาวชิ้นงานต่ำสุด (ม.)', 0.3, 3, 0.1],
+    ['mix.cutMax', 'ความยาวชิ้นงานสูงสุด (ม., ไม่เกิน 3)', 0.3, 3, 0.1],
+    ['mix.jointsMin', 'รอยต่อต่อ spool ต่ำสุด', 1, 12, 1],
+    ['mix.jointsMax', 'รอยต่อต่อ spool สูงสุด', 1, 12, 1],
+    ['pack.perCrate', 'Spool ต่อลังไม้', 1, 20, 1],
+    ['pack.perTruck', 'ลังไม้ต่อเที่ยวรถ (แสดงบนรถสูงสุด 10)', 1, 40, 1],
+  ]],
+  ['ระยะเวลาและคุณภาพ', [
+    ['time.handling', 'เวลาจัดยก/วางต่อครั้ง (นาที)', 0, 120, 1],
+    ['time.walk', 'ความเร็วเดินขณะยกท่อ (ม./นาที)', 1, 80, 1],
+    ['time.variation', 'ความแปรปรวนของเวลาทำงาน (± %)', 0, 80, 1],
+    ['time.ncr.0', 'NCR ที่ 06 ตรวจขนาด (%)', 0, 50, 0.5],
+    ['time.ncr.1', 'NCR ที่ 07 ทดสอบแรงดัน (%)', 0, 50, 0.5],
+    ['time.ncr.2', 'NCR ที่ 09 Final Inspection (%)', 0, 50, 0.5],
+    ['time.ncr.3', 'NCR ที่ A3 ตรวจ Torque (%)', 0, 50, 0.5],
+    ['alert.warn', 'ไฟเหลืองเมื่อคิวถึง (ชิ้น)', 1, 50, 1],
+    ['alert.bad', 'ไฟแดง/คอขวดเมื่อคิวถึง (ชิ้น)', 1, 80, 1],
+  ]],
+];
+const getPath = (o, p) => p.split('.').reduce((a, k) => a == null ? a : a[k], o);
+function setPath(o, p, v){ const ks = p.split('.'); let a = o; for (let k = 0; k < ks.length - 1; k++) a = a[ks[k]]; a[ks[ks.length - 1]] = v; }
+const fid = p => 'pf-' + p.replace(/\./g, '-');
+function renderParams(){
+  const fs = FIELDS.map(([title, list]) => `<fieldset><legend>${esc(title)}</legend>${list.map(([p, label, min, max, step]) => min === 'bool'
+      ? `<label class="f chk" for="${fid(p)}"><span>${esc(label)}</span><input type="checkbox" id="${fid(p)}" data-path="${p}"${getPath(P, p) ? ' checked' : ''}></label>`
+      : `<label class="f" for="${fid(p)}"><span>${esc(label)}</span><input type="number" id="${fid(p)}" data-path="${p}" min="${min}" max="${max}" step="${step}" value="${getPath(P, p)}"></label>`).join('')}</fieldset>`).join('');
+  const rows = ORDER.map(i => { const st = ST[i], q = P.stations[i]; return `<tr data-row="${i}">
+      <td><b>${st.no}</b> ${esc(st.short.replace(/^A\d /,''))}<br><span class="label" style="text-transform:none;letter-spacing:0">${esc(st.equip)}</span></td>
+      <td><input type="number" id="${fid('stations.' + i + '.m')}" data-path="stations.${i}.m" min="1" max="${MAXM[i]}" step="1" value="${q.m}" aria-label="จำนวนเครื่อง ${st.no}"></td>
+      <td><input type="number" id="${fid('stations.' + i + '.w')}" data-path="stations.${i}.w" min="0" max="40" step="1" value="${q.w}" aria-label="จำนวนคน ${st.no}"></td>
+      <td><input type="number" id="${fid('stations.' + i + '.cpj')}" data-path="stations.${i}.cpj" min="0.25" max="6" step="0.25" value="${q.cpj}" aria-label="คนต่องาน ${st.no}"></td>
+      <td><input type="number" id="${fid('stations.' + i + '.t')}" data-path="stations.${i}.t" min="0.05" max="48" step="0.05" value="${q.t}" aria-label="เวลามาตรฐาน ${st.no}"></td>
+      <td class="num" data-c="eff"></td><td class="num" data-c="load"></td><td class="num" data-c="cap"></td><td data-c="util"></td></tr>`; }).join('');
+  $('#p-param').innerHTML = `
+    <div class="phead">
+      <div><h3>ตั้งค่า Parameter การจำลอง</h3><p class="note" style="margin:4px 0 0">${STORED ? 'กำลังใช้ค่าที่คุณตั้งไว้' : 'กำลังใช้ค่าเริ่มต้น'} · ค่าจะเก็บไว้ในเบราว์เซอร์ของคุณเครื่องนี้เท่านั้น · กด "ใช้ค่านี้" แล้วการจำลองจะเริ่มใหม่</p></div>
+      <div class="pbtns">
+        <button class="btn primary" type="button" id="pApply">ใช้ค่านี้ &amp; เริ่มจำลองใหม่</button>
+        <button class="btn" type="button" id="pReset">คืนค่าเริ่มต้น</button>
+        <button class="btn" type="button" id="pCopy">คัดลอกค่า (JSON)</button>
+        <button class="btn" type="button" id="pPasteT">วางค่าจาก JSON</button>
+      </div>
+    </div>
+    <div class="pmsg" id="pMsg" role="status"></div>
+    <div class="ppaste" id="pPaste" hidden><textarea id="pJson" rows="5" spellcheck="false" aria-label="ค่าพารามิเตอร์ JSON"></textarea><button class="btn" type="button" id="pImport">นำค่าเข้าแบบฟอร์ม</button></div>
+    <div class="forecast" id="pForecast"></div>
+    <h3 class="psub">คนและเครื่องจักรรายสถานี</h3>
+    <div class="scroll"><table class="ptable" style="min-width:880px">
+      <thead><tr><th>สถานี</th><th>เครื่อง / Station</th><th>คนประจำ</th><th>คนต่องาน</th><th>เวลามาตรฐาน (ชม./ชิ้น)</th><th style="text-align:right">ทำพร้อมกันได้</th><th style="text-align:right">ภาระ (ชิ้น/วัน)</th><th style="text-align:right">กำลังผลิต (ชิ้น/วัน)</th><th style="width:150px">ใช้งาน</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    <p class="note">"คนต่องาน" คือจำนวนคนที่ต้องใช้ต่อ 1 งานพร้อมกัน เช่น เลื่อยสายพาน 2 (ช่างตัด + ผู้ช่วย), Flushing/Passivation 0.5 (คน 1 คนดูแลได้ 2 ถัง) · เวลามาตรฐานคือเวลาต่อชิ้นที่มี 4 รอยต่อและยาวประมาณ 2 ม. ระบบจะปรับตามรอยต่อและความยาวจริง</p>
+    <div class="pgrid">${fs}</div>`;
+  $('#p-param').addEventListener('input', updateForecast);
+  $('#pApply').addEventListener('click', () => {
+    const Q = readForm(), err = validate(Q);
+    if (err.length) return showMsg(err.join(' · '), 'bad');
+    let ok = false;
+    for (const get of [() => localStorage, () => sessionStorage]){ try { get().setItem(PKEY, JSON.stringify(Q)); ok = true; break; } catch (e) {} }
+    if (!ok) return showMsg('บันทึกค่าในเบราว์เซอร์นี้ไม่ได้ (อาจเป็นโหมดส่วนตัว) — ใช้ "คัดลอกค่า (JSON)" เก็บไว้แทน', 'bad');
+    showMsg('บันทึกแล้ว กำลังเริ่มจำลองใหม่…', 'ok'); setTimeout(() => location.reload(), 300);
+  });
+  $('#pReset').addEventListener('click', () => {
+    for (const get of [() => localStorage, () => sessionStorage]){ try { get().removeItem(PKEY); } catch (e) {} }
+    showMsg('คืนค่าเริ่มต้นแล้ว กำลังเริ่มจำลองใหม่…', 'ok'); setTimeout(() => location.reload(), 300);
+  });
+  $('#pCopy').addEventListener('click', () => {
+    const txt = JSON.stringify(readForm(), null, 1);
+    const fallback = () => { $('#pPaste').hidden = false; $('#pJson').value = txt; $('#pJson').select(); showMsg('คัดลอกอัตโนมัติไม่ได้ — เลือกข้อความในกล่องแล้วกดคัดลอกเอง', 'warn'); };
+    try { navigator.clipboard.writeText(txt).then(() => showMsg('คัดลอกค่าแล้ว นำไปวางเก็บหรือส่งต่อได้', 'ok'), fallback); } catch (e) { fallback(); }
+  });
+  $('#pPasteT').addEventListener('click', () => { $('#pPaste').hidden = !$('#pPaste').hidden; if (!$('#pPaste').hidden) $('#pJson').focus(); });
+  $('#pImport').addEventListener('click', () => {
+    try { const Q = mergeP(DEF, JSON.parse($('#pJson').value)); fillForm(Q); updateForecast(); showMsg('นำค่าเข้าแบบฟอร์มแล้ว ตรวจดูแล้วกด "ใช้ค่านี้"', 'ok'); }
+    catch (e) { showMsg('อ่าน JSON ไม่ได้ — ตรวจว่าคัดลอกมาครบทั้งข้อความ', 'bad'); }
+  });
+  updateForecast();
+}
+function showMsg(t, kind){ const m = $('#pMsg'); m.textContent = t; m.className = 'pmsg ' + (kind || ''); }
+function readForm(){
+  const Q = JSON.parse(JSON.stringify(P));
+  document.querySelectorAll('#p-param [data-path]').forEach(el => setPath(Q, el.dataset.path, el.type === 'checkbox' ? el.checked : +el.value));
+  return mergeP(DEF, Q);
+}
+function fillForm(Q){ document.querySelectorAll('#p-param [data-path]').forEach(el => { const v = getPath(Q, el.dataset.path); if (el.type === 'checkbox') el.checked = !!v; else el.value = v; }); }
+function validate(Q){
+  const e = [];
+  if (Q.people.handlers < 3) e.push('คนยกย้ายต้องมีอย่างน้อย 3 คน (ท่อใหญ่ยาวต้องยก 3 คน)');
+  if (Q.mix.cutMin > Q.mix.cutMax) e.push('ความยาวต่ำสุดต้องไม่เกินความยาวสูงสุด');
+  if (Q.mix.cutMax > 3) e.push('ความยาวหลังตัดต้องไม่เกิน 3 ม.');
+  if (Q.mix.cutMin * Math.round(Q.mix.pieces) > 5.9) e.push(`ตัด ${Math.round(Q.mix.pieces)} ชิ้น ยาวอย่างน้อย ${Q.mix.cutMin} ม. เกินท่อ 6 ม.`);
+  if (Q.mix.jointsMin > Q.mix.jointsMax) e.push('รอยต่อต่ำสุดต้องไม่เกินสูงสุด');
+  if (Q.mix.sizes.reduce((a, b) => a + Math.max(0, b), 0) <= 0) e.push('สัดส่วนขนาดท่อต้องมีอย่างน้อย 1 ขนาด');
+  if (Q.alert.warn > Q.alert.bad) e.push('เกณฑ์ไฟเหลืองต้องไม่เกินไฟแดง');
+  if (Q.shift.start + Q.shift.normal + (Q.shift.lunch ? 1 : 0) + Q.shift.ot > 24) e.push('เวลาเริ่มงาน + ชั่วโมงปกติ + OT เกิน 24 ชม.');
+  return e;
+}
+// steady-state forecast: station load vs capacity per working day (same time model as the simulation)
+function forecast(Q){
+  const H = Q.shift.normal + Q.shift.ot, pcs = Math.max(1, Math.round(Q.mix.pieces));
+  const raws = Math.round(Q.incoming.perDay) * Math.round(Q.incoming.pipes), spd = raws * pcs;
+  const g = Q.mix.groove / 100, a = Q.mix.assy / 100;
+  const meanJ = (Q.mix.jointsMin + Q.mix.jointsMax) / 2, meanL = (Q.mix.cutMin + Math.min(3, Q.mix.cutMax)) / 2;
+  const f = (meanJ / 8 + 0.5) * (0.6 + meanL / 5);
+  const per = [1/pcs, 1/pcs, 1, g, 1, 1, 1 + a, 1, 1, 1, a, a, a];          // visits per spool
+  const rows = ST.map((st, i) => {
+    const q = Q.stations[i], eff = effCapOf(Math.min(MAXM[i], Math.round(q.m)), Math.round(q.w), Math.max(0.25, q.cpj));
+    const tv = q.t * (i <= 1 ? 1 : f), capDay = tv > 0 ? eff * H / tv : 0, load = spd * per[i];
+    return {i, eff, tv, load, capDay, util: capDay > 0 ? load / capDay : (load > 0 ? Infinity : 0), per: per[i]};
+  });
+  let thr = spd, limit = null;
+  for (const r of rows) if (r.per > 0){ const c = r.capDay / r.per; if (c < thr - 1e-9){ thr = c; limit = r.i; } }
+  const heads = Q.stations.reduce((s, q) => s + Math.round(q.w), 0) + Q.people.handlers + 4;
+  const costDay = heads * Q.cost.rate * (Q.shift.normal + Q.shift.ot * Q.cost.otMult);
+  return {rows, thr, limit, spd, raws, H, heads, costDay};
+}
+function updateForecast(){
+  const Q = readForm(), F = forecast(Q), err = validate(Q);
+  for (const r of F.rows){
+    const tr = document.querySelector(`#p-param tr[data-row="${r.i}"]`); if (!tr) continue;
+    const u = r.util, cls = !isFinite(u) || u > 1 ? 'bad' : u > 0.85 ? 'warn' : 'ok';
+    tr.querySelector('[data-c=eff]').textContent = r.eff;
+    tr.querySelector('[data-c=load]').textContent = r.load.toFixed(1);
+    tr.querySelector('[data-c=cap]').textContent = r.capDay.toFixed(1);
+    tr.querySelector('[data-c=util]').innerHTML = `<span class="ubar"><i class="${cls}" style="width:${Math.min(100, isFinite(u) ? u * 100 : 100).toFixed(0)}%"></i></span><span class="mono ${cls}">${isFinite(u) ? (u * 100).toFixed(0) + '%' : 'ไม่มีคน'}</span>`;
+  }
+  const worst = F.rows.filter(r => r.load > 0).sort((a, b) => b.util - a.util)[0];
+  const tips = F.rows.filter(r => r.load > 0 && r.util > 1).map(r => {
+    const q = Q.stations[r.i], needEff = Math.ceil(r.load * r.tv / F.H - 1e-9), otNeed = r.eff ? r.load * r.tv / r.eff - Q.shift.normal : Infinity;
+    const m = Math.min(MAXM[r.i], Math.round(q.m)), w = Math.round(q.w);
+    const fix = needEff > m ? `เพิ่มเครื่องเป็น ${needEff}${needEff > MAXM[r.i] ? ' (เกินที่ผังรองรับ ' + MAXM[r.i] + ')' : ''}` : `เพิ่มคนเป็น ${Math.ceil(needEff * q.cpj)}`;
+    return `<li><b>${ST[r.i].no} ${esc(ST[r.i].short.replace(/^A\d /,''))}</b> ใช้งาน ${isFinite(r.util) ? (r.util*100).toFixed(0) + '%' : '—'} → ${fix}${isFinite(otNeed) && otNeed > Q.shift.ot && otNeed - Q.shift.normal < 8 ? ` หรือ OT ≈ ${Math.ceil(otNeed * 2) / 2} ชม./วัน` : ''}</li>`;
+  });
+  const days = Q.mix.target > 0 && F.thr > 0 ? Q.mix.target / F.thr : null;
+  $('#pForecast').innerHTML = `
+    ${err.length ? `<div class="pmsg bad">${err.map(esc).join(' · ')}</div>` : ''}
+    <div class="kpis fk">
+      <div class="kpi"><span class="v">${F.spd.toFixed(0)}</span><span class="k">Spool เข้าต่อวัน (ท่อดิบ ${F.raws} เส้น × ${Math.round(Q.mix.pieces)} ชิ้น)</span></div>
+      <div class="kpi"><span class="v">${F.thr.toFixed(1)}</span><span class="k">ผลิตได้จริงต่อวัน${F.limit !== null ? ' · จำกัดโดย ' + ST[F.limit].no + ' ' + esc(ST[F.limit].short.replace(/^A\d /,'')) : ''}</span></div>
+      <div class="kpi"><span class="v">${worst ? (isFinite(worst.util) ? (worst.util * 100).toFixed(0) + '%' : '—') : '—'}</span><span class="k">คอขวดคาดการณ์ ${worst ? ST[worst.i].no + ' ' + esc(ST[worst.i].short.replace(/^A\d /,'')) : ''}</span></div>
+      <div class="kpi"><span class="v">${days ? Math.ceil(days) : '—'}</span><span class="k">${days ? `วันทำงานสำหรับ ${Q.mix.target} spool (≈ ${Math.ceil(days * 7 / Q.shift.days)} วันปฏิทิน)` : 'วันทำงานตามใบสั่ง (ใส่จำนวน Spool ตามใบสั่ง)'}</span></div>
+      <div class="kpi"><span class="v">${F.heads}</span><span class="k">พนักงานทั้งหมด (รวมคนยก QC หัวหน้างาน และคนขับโฟล์คลิฟต์)</span></div>
+      <div class="kpi"><span class="v">${baht(F.costDay)}</span><span class="k">ค่าแรงต่อวัน (${F.H} ชม./วัน รวม OT ${Q.shift.ot} ชม.)</span></div>
+    </div>
+    ${tips.length ? `<div class="tips"><b>ข้อเสนอให้รับงานได้ครบ:</b><ul>${tips.join('')}</ul></div>` : '<div class="tips ok">ทุกสถานีรับภาระได้ไม่เกิน 100% ที่ค่าปัจจุบัน</div>'}
+    <p class="note" style="margin:6px 0 0">คาดการณ์ตามค่าเฉลี่ยในสภาวะคงที่ ยังไม่รวมงานแก้จาก NCR การรอคนยก และความแปรปรวน ผลจริงดูได้จากการจำลองหลังกด "ใช้ค่านี้"</p>`;
+}
+
 function renderSpools(){
   const list = [...spools].filter(s => !s.gone).sort((a,b) => (!!a.shippedAt - !!b.shippedAt) || (a.kind === 'raw') - (b.kind === 'raw') || a.id.localeCompare(b.id));
   $('#p-spool').innerHTML = `<div class="scroll"><table style="min-width:980px">
@@ -1387,6 +1764,7 @@ document.querySelectorAll('[role=tab]').forEach(t => t.addEventListener('click',
 $('#playBtn').addEventListener('click', () => { sim.running = !sim.running; $('#playBtn').textContent = sim.running ? '❚❚ หยุดชั่วคราว' : '▶ เดินเครื่อง'; });
 $('#speedSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; sim.speed = +b.dataset.s; $('#speedSeg').querySelectorAll('button').forEach(o => o.setAttribute('aria-pressed', o === b)); });
 $('#addBtn').addEventListener('click', () => { const s = spawnAtReceiving(); select({spool: s}); });
+$('#paramBtn').addEventListener('click', () => { $('#tab-param').click(); $('#tab-param').scrollIntoView({behavior: 'smooth', block: 'start'}); });
 $('#viewBtn').addEventListener('click', () => { select({}); flyTo(HOME.pos.clone(), HOME.tgt.clone()); });
 $('#tourBtn').addEventListener('click', () => { if (tour) endTour(false); else { select({}); startTour(); } });
 $('#qualBtn').addEventListener('click', () => { quality = quality === 'high' ? 'normal' : 'high'; autoQ.done = true; applyQuality(); });
@@ -1412,15 +1790,17 @@ function placeCarriers(s, pos, dir){
 }
 function frame(now){
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
-  const simDt = sim.running ? dt * sim.speed * 0.5 : 0;
+  const simDt = sim.running && !sim.doneAt ? dt * sim.speed / 60 : 0;
   if (simDt){ const n = Math.ceil(simDt / 0.05); for (let k=0;k<n;k++) tick(simDt/n); }
-  const animK = sim.running ? Math.max(1, sim.speed / 2) : 0;
+  if (sim.doneAt && sim.running){ sim.running = false; $('#playBtn').textContent = '▶ เดินเครื่อง'; }
+  const shNow = shiftAt(sim.t), onDuty = shNow.state !== 'off';
+  const animK = sim.running ? Math.max(1, Math.min(6, sim.speed / 10)) : 0;
   tAnim += dt * animK;
 
   for (const s of spools){
     if (s.gone || s.phase === 'crated') continue;
     if (s.mesh && s.mesh.userData.stage !== meshStage(s)){ const p = s.mesh.position.clone(), ry = s.mesh.rotation.y; scene.remove(s.mesh); s.mesh = spoolMesh(s); s.mesh.position.copy(p); s.mesh.rotation.y = ry; if (selection.spool === s) s.mesh.userData.sel.visible = true; }
-    if (!s.mesh){ s.mesh = spoolMesh(s); s.mesh.position.copy(spoolTarget(s)); if (s.phase !== 'move' && ST[s.route[s.step]].axisX) s.mesh.rotation.y = Math.PI/2; }
+    if (!s.mesh){ s.mesh = spoolMesh(s); s.mesh.position.copy(spoolTarget(s)); if (s.phase !== 'move') s.mesh.rotation.y = restYaw(s); }
     const tgt = spoolTarget(s);
     if (s.phase === 'move'){
       s.mesh.position.copy(tgt);
@@ -1436,7 +1816,7 @@ function frame(now){
     } else {
       freeEscorts(s);
       s.mesh.position.lerp(tgt, 1 - Math.exp(-dt * 8));
-      const want = ST[s.route[s.step]].axisX ? Math.PI/2 : 0;
+      const want = restYaw(s);
       let d = want - s.mesh.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d));
       s.mesh.rotation.y += d * Math.min(1, dt * 8);
     }
@@ -1448,22 +1828,24 @@ function frame(now){
     }
   }
   for (const w of walkers){
-    if (!sim.running){ posePerson(w.p, 'idle', tAnim); continue; }
+    w.p.visible = onDuty;
+    if (!sim.running || !onDuty){ posePerson(w.p, 'idle', tAnim); continue; }
     if (w.wait > 0){ w.wait -= dt; posePerson(w.p, 'work', tAnim + w.ph); if (w.wait <= 0) walkerNext(w); continue; }
-    w.prog += dt * 1.4 * Math.max(0.6, sim.speed / 2);
+    w.prog += dt * 1.4 * animK;
     const pos = pointOnPath(w.path, w.prog), ahead = pointOnPath(w.path, w.prog + 0.3).sub(pos);
     w.p.position.set(pos.x, 0, pos.z);
     if (ahead.lengthSq() > 1e-4) w.p.rotation.y = Math.atan2(ahead.x, ahead.z);
     posePerson(w.p, 'walk', w.prog * 4.4);
     if (w.prog >= w.path.len){ w.wait = 1.6 + Math.random() * 1.6; const r = ROW[ST[w.stops[w.k]].row]; w.p.rotation.y = r.face > 0 ? Math.PI : 0; }
   }
-  // forklift: picks a closed crate from packing and loads it onto the dispatch truck (10 crates per truck)
-  if (sim.running){
+  // forklift: picks a closed crate from packing and loads it onto the dispatch truck
+  driver.visible = onDuty;
+  if (sim.running && onDuty){
     if (fork.wait > 0) fork.wait -= dt * animK;
     else if (fork.dir === 0){ if (sim.cratesReady > 0){ sim.cratesReady--; fork.loaded = true; fork.dir = 1; } }
     else {
       fork.prog += fork.dir * dt * 2.2 * animK;
-      if (fork.prog >= FORK_PATH.len){ fork.prog = FORK_PATH.len; fork.dir = -1; fork.wait = 2.5; fork.loaded = false; sim.cratesShipped++; if (++sim.cratesOnTruck > 10){ sim.cratesOnTruck = 1; sim.trucks++; } }
+      if (fork.prog >= FORK_PATH.len){ fork.prog = FORK_PATH.len; fork.dir = -1; fork.wait = 2.5; fork.loaded = false; sim.cratesShipped++; if (++sim.cratesOnTruck > P.pack.perTruck){ sim.cratesOnTruck = 1; sim.trucks++; } }
       if (fork.prog <= 0){ fork.prog = 0; fork.dir = 0; fork.wait = 1.5; }
     }
   }
@@ -1477,13 +1859,16 @@ function frame(now){
   let ai = 0;
   stations.forEach((o, i) => {
     const st = stationState(i), r = stRun[i];
-    if (st !== o.state){ o.state = st; o.lamps.forEach((m, n) => { m.emissiveIntensity = ['bad','warn','ok'][n] === st ? 3.2 : 0.04; }); }
+    const lampKey = onDuty ? st : 'off';
+    if (lampKey !== o.state){ o.state = lampKey; o.lamps.forEach((m, n) => { m.emissiveIntensity = ['bad','warn','ok'][n] === lampKey ? 3.2 : 0.04; }); }
     o.olMat.color.set(selection.station === i ? (tok('--accent') || '#2F6FD6') : '#f4f4f0');
+    const working = sim.running && isWorking(shNow.state), nb = Math.min(o.crew.length, Math.ceil(r.work.length * ST[i].cpj));
     o.crew.forEach((p, k) => {
-      const busy = sim.running && (ST[i].crew.length === ST[i].cap ? r.work.some(s => s.slot === k) : r.work.length > 0 && k < Math.max(1, Math.ceil(r.work.length * ST[i].crew.length / ST[i].cap)));
+      p.visible = onDuty;
+      const busy = working && (p.userData.slot !== undefined ? r.work.some(s => s.slot === p.userData.slot) : k < nb);
       posePerson(p, busy && !reduce ? 'work' : 'idle', tAnim + i + k);
     });
-    const busy = r.work.length > 0 && sim.running, f = o.fx;
+    const busy = r.work.length > 0 && working, f = o.fx;
     if (f.light){
       const on = busy && !reduce;
       f.light.intensity = on ? 2 + Math.random() * 4 : 0;
@@ -1494,10 +1879,10 @@ function frame(now){
         if (on) for (let n = 0; n < 3; n++) emitSpark(arcP);
       }
     }
-    if (f.rolls && !reduce) f.rolls.forEach((rl, n) => { if (sim.running && r.work.some(s => s.slot === n)) rl.rotation.y += dt * 9; });
-    if (f.blade && busy && !reduce) f.blade.position.y = 1.05 + Math.sin(tAnim*4)*0.1;
+    if (f.rolls && !reduce) f.rolls.forEach((rl, n) => { if (working && r.work.some(s => s.slot === n)) rl.rotation.y += dt * 9; });
+    if (f.blades && !reduce) f.blades.forEach((b, n) => { if (working && r.work.some(s => s.slot === n)) b.position.y = 1.05 + Math.sin(tAnim*4 + n)*0.1; });
     if (f.gantry && busy && !reduce) f.gantry.rotation.y += dt * 1.5;
-    if (f.needles) f.needles.forEach((nd, n) => { nd.rotation.z = r.work.some(s => s.slot === n) ? -0.4 - Math.sin(tAnim*0.8 + n)*0.6 : 0.9; });
+    if (f.needles) f.needles.forEach((nd, n) => { nd.rotation.z = working && r.work.some(s => s.slot === n) ? -0.4 - Math.sin(tAnim*0.8 + n)*0.6 : 0.9; });
     if (f.water && busy && !reduce) f.water.position.y = 1.55 + Math.sin(tAnim*3)*0.03;
     if (f.hooks && !reduce) f.hooks.forEach((h, n) => { const on = sim.running && r.work.some(s => s.slot === n); const y = on ? Math.sin(tAnim*0.7 + n)*0.35 : 0.35; h.block.position.y = 2.0 + y; h.chain.scale.y = Math.max(0.05, 1 - y); h.chain.position.y = 2.5 + y/2; });
   });
@@ -1534,7 +1919,10 @@ function frame(now){
   uiAcc += dt; tblAcc += dt;
   if (uiAcc > 0.4){
     uiAcc = 0; renderRail();
-    const [d, hm] = clockTxt(sim.t); $('#clock').innerHTML = `วันที่ <b>${d}</b> · <b>${hm}</b>`;
+    const [d, hm] = clockTxt(sim.t);
+    $('#clock').innerHTML = `${DAYS[shNow.dow]} · วันที่ <b>${d}</b> · <b>${hm}</b> · <span class="pill ${SHIFT_PILL[shNow.state]}">${SHIFT_TXT[shNow.state]}</span>`;
+    const tag = $('#shiftTag'); tag.hidden = onDuty && !sim.doneAt;
+    tag.textContent = sim.doneAt ? `ผลิตครบ ${P.mix.target} spool ตามใบสั่งแล้ว · ${DAYS[shiftAt(sim.doneAt).dow]} วันที่ ${clockTxt(sim.doneAt)[0]} เวลา ${clockTxt(sim.doneAt)[1]}` : 'นอกเวลาทำงาน — พนักงานกลับบ้าน' + (P.shift.skipNight ? ' (กำลังข้ามไปกะถัดไป)' : '');
     if (!hovering.has('#side') && !$('#side').contains(document.activeElement)) renderSide();
   }
   if (tblAcc > 1.5){ tblAcc = 0; if (!$('#p-spool').hidden && !hovering.has('#p-spool')) renderSpools(); }
@@ -1545,7 +1933,7 @@ mergeStatics();
 seed();
 applyTheme();
 applyQuality();
-renderRail(); renderSide(); renderPlan(); renderSpools(); renderDocs();
+renderRail(); renderSide(); renderPlan(); renderSpools(); renderDocs(); renderParams();
 (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(() => {
   stations.forEach((o, i) => { const t = signTexture(ST[i]); o.sign.mat.map = t; o.sign.back.map = t; o.sign.mat.needsUpdate = o.sign.back.needsUpdate = true; });
 });
